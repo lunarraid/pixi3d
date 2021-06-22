@@ -103,7 +103,10 @@ export class glTFParser {
         channels.push(animationChannel)
       }
     }
-    return new glTFAnimation(channels, animation.name)
+
+    const frameMarkers = animation.extensions?.IWG_pose_markers?.markers || []
+
+    return new glTFAnimation(channels, animation.name, frameMarkers)
   }
 
   /**
@@ -164,15 +167,15 @@ export class glTFParser {
     let texture = this._asset.images[this._descriptor.textures[source.index].source];
 	  if (source.extensions && source.extensions.KHR_texture_transform) {
 	    TextureTransform.calculateUVTransform(source.extensions.KHR_texture_transform, texture);
-    }    
+    }
     return texture;
   }
 
   /**
    * Creates an array of meshes from the specified mesh.
    * @param mesh The source mesh object or index.
-   * @returns An array which contain arrays of meshes. This is because of the 
-   * structure used in glTF, where each mesh contain a number of primitives. 
+   * @returns An array which contain arrays of meshes. This is because of the
+   * structure used in glTF, where each mesh contain a number of primitives.
    * Read more about this in discussion at https://github.com/KhronosGroup/glTF/issues/821
    */
   parseMesh(mesh: any) {

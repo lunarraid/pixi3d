@@ -1,11 +1,18 @@
 import * as PIXI from "pixi.js"
 
+export interface FrameMarker {
+  name: string;
+  time: number;
+}
+
 /**
  * Represents an animation.
  */
 export abstract class Animation extends PIXI.utils.EventEmitter {
   private _ticker?: PIXI.Ticker
   private _update?: (...params: any[]) => void
+  private _markers: FrameMarker[]
+
 
   /** The duration (in seconds) of this animation. */
   abstract readonly duration: number
@@ -23,13 +30,14 @@ export abstract class Animation extends PIXI.utils.EventEmitter {
    * Creates a new animation with the specified name.
    * @param name Name for the animation.
    */
-  constructor(public name?: string) {
+  constructor(public name?: string, markers: FrameMarker[] = []) {
     super()
+    this._markers = markers;
   }
 
   /**
    * Starts playing the animation using the specified ticker.
-   * @param ticker The ticker to use for updating the animation. If a ticker 
+   * @param ticker The ticker to use for updating the animation. If a ticker
    * is not given, the shared ticker will be used.
    */
   play(ticker = PIXI.Ticker.shared) {
@@ -57,10 +65,20 @@ export abstract class Animation extends PIXI.utils.EventEmitter {
    * @param delta The time in seconds since last frame.
    */
   update(delta: number) {
+    const previousPosition = this.position
+
     this.position += delta
+
+    for (const { name, time } of this._markers) {
+      if (previousPosition < time && this.position >= time) {
+        this.emit("frameEvent", name);
+      }
+    }
+
     if (this.position < this.duration) {
       return
     }
+
     if (this.loop) {
       if (this.position > this.duration) {
         this.position = this.position % this.duration
@@ -70,6 +88,7 @@ export abstract class Animation extends PIXI.utils.EventEmitter {
       this.position = this.duration
       this.stop()
     }
+
     this.emit("complete")
   }
 }

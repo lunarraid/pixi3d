@@ -11,7 +11,7 @@ import { StandardMaterial } from "../material/standard/standard-material"
 import { MaterialRenderSortType } from "../material/material-render-sort-type"
 
 /**
- * The standard pipeline renders meshes using the specified render passes. The 
+ * The standard pipeline renders meshes using the specified render passes. The
  * standard pipeline is created and used by default.
  */
 export class StandardPipeline extends PIXI.ObjectRenderer {
@@ -68,7 +68,7 @@ export class StandardPipeline extends PIXI.ObjectRenderer {
   }
 
   /**
-   * Creates a new post processing sprite and uses that to render to it's 
+   * Creates a new post processing sprite and uses that to render to it's
    * texture.
    * @param options The options when creating the sprite.
    */
@@ -124,11 +124,11 @@ export class StandardPipeline extends PIXI.ObjectRenderer {
   }
 
   /**
-   * Enables shadows for the specified object. Adds the shadow render pass to 
-   * the specified object and enables the standard material to use the casting 
+   * Enables shadows for the specified object. Adds the shadow render pass to
+   * the specified object and enables the standard material to use the casting
    * light.
    * @param object The mesh or model to enable shadows for.
-   * @param light The shadow casting light to associate with the 
+   * @param light The shadow casting light to associate with the
    * object when using the standard material.
    */
   enableShadows(object: Mesh3D | Model, light?: ShadowCastingLight) {

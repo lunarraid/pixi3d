@@ -39,16 +39,20 @@ export class MaterialRenderPass implements RenderPass {
   }
 
   render(meshes: Mesh3D[]) {
+    const currentRenderTexture = this.renderer.renderTexture.current
+
     if (this._renderTexture) {
       this.renderer.renderTexture.bind(this._renderTexture)
     }
+
     for (let mesh of meshes) {
       if (mesh.material) {
         mesh.material.render(mesh, this.renderer)
       }
     }
+
     if (this._renderTexture) {
-      this.renderer.renderTexture.bind(undefined)
+      this.renderer.renderTexture.bind(currentRenderTexture)
     }
   }
 }

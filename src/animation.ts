@@ -57,6 +57,7 @@ export abstract class Animation extends PIXI.utils.EventEmitter {
     if (this._ticker && this._update) {
       this._ticker.remove(this._update)
       this._ticker = this._update = undefined
+      this.position !== this.duration && this.emit("stopped")
     }
   }
 

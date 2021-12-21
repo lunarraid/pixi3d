@@ -1,9 +1,8 @@
-import * as PIXI from "pixi.js"
-
+import { ObjectRenderer, Renderer } from "pixi.js"
 import { MaterialRenderPass } from "./material-render-pass"
 import { Mesh3D } from "../mesh/mesh"
 import { ShadowRenderPass } from "../shadow/shadow-render-pass"
-import { PostProcessingSprite, PostProcessingSpriteOptions } from "./post-processing-sprite"
+import { PostProcessingSprite, PostProcessingSpriteOptions } from "../sprite/post-processing-sprite"
 import { Model } from "../model"
 import { ShadowCastingLight } from "../shadow/shadow-casting-light"
 import { RenderPass } from "./render-pass"
@@ -11,77 +10,52 @@ import { StandardMaterial } from "../material/standard/standard-material"
 import { MaterialRenderSortType } from "../material/material-render-sort-type"
 
 /**
- * The standard pipeline renders meshes using the specified render passes. The
- * standard pipeline is created and used by default.
+ * The standard pipeline renders meshes using the set render passes. It's
+ * created and used by default.
  */
-export class StandardPipeline extends PIXI.ObjectRenderer {
-  private _renderPasses: RenderPass[] = []
+export class StandardPipeline extends ObjectRenderer {
   private _meshes: Mesh3D[] = []
-  private _materialPass: MaterialRenderPass
-  private _shadowPass: ShadowRenderPass
 
-  /**
-   * Returns the standard pipeline from the specified renderer.
-   * @param renderer The renderer to use.
-   */
-  static from(renderer: PIXI.Renderer) {
-    return <StandardPipeline>(<any>renderer.plugins).pipeline
-  }
+  /** The pass used for rendering materials. */
+  materialPass = new MaterialRenderPass(this.renderer, "material")
+
+  /** The pass used for rendering shadows. */
+  shadowPass = new ShadowRenderPass(this.renderer, "shadow")
+
+  /** The array of render passes. Each mesh will be rendered with these passes (if it has been enabled on that mesh). */
+  renderPasses: RenderPass[] = [
+    this.shadowPass, this.materialPass,
+  ]
 
   /**
    * Creates a new standard pipeline using the specified renderer.
    * @param renderer The renderer to use.
    */
-  constructor(public renderer: PIXI.Renderer) {
+  constructor(public renderer: Renderer) {
     super(renderer)
 
-    this._shadowPass = this.addRenderPass(new ShadowRenderPass(renderer, "shadow"))
-    this._materialPass = this.addRenderPass(new MaterialRenderPass(renderer, "material"))
-
     renderer.on("prerender", () => {
-      for (let pass of this._renderPasses) {
+      for (let pass of this.renderPasses) {
         if (pass.clear) { pass.clear() }
       }
     })
   }
 
   /**
-   * Adds a render pass.
-   * @param renderPass The pass to add.
-   */
-  addRenderPass<T extends RenderPass>(renderPass: T) {
-    if (this._renderPasses.indexOf(renderPass) < 0) {
-      this._renderPasses.push(renderPass)
-    }
-    return renderPass
-  }
-
-  /**
-   * Removes a render pass.
-   * @param renderPass The pass to remove.
-   */
-  removeRenderPass(renderPass: RenderPass) {
-    const index = this._renderPasses.indexOf(renderPass)
-    if (index >= 0) {
-      this._renderPasses.splice(index, 1)
-    }
-  }
-
-  /**
-   * Creates a new post processing sprite and uses that to render to it's
-   * texture.
+   * Creates a new post processing sprite and sets the material pass to render
+   * to it's texture.
    * @param options The options when creating the sprite.
    */
   createPostProcessingSprite(options?: PostProcessingSpriteOptions) {
     const sprite =
       new PostProcessingSprite(this.renderer, options)
-    this._materialPass.renderTexture = sprite.renderTexture
+    this.materialPass.renderTexture = sprite.renderTexture
     return sprite
   }
 
   /**
    * Adds a mesh to be rendered.
-   * @param mesh Mesh to add.
+   * @param mesh The mesh to render.
    */
   render(mesh: Mesh3D) {
     this._meshes.push(mesh)
@@ -92,7 +66,7 @@ export class StandardPipeline extends PIXI.ObjectRenderer {
    */
   flush() {
     this.sort()
-    for (let pass of this._renderPasses) {
+    for (let pass of this.renderPasses) {
       pass.render(this._meshes.filter(mesh => mesh.isRenderPassEnabled(pass.name)))
     }
     this._meshes = []
@@ -109,26 +83,16 @@ export class StandardPipeline extends PIXI.ObjectRenderer {
       if (a.material.renderSortType !== b.material.renderSortType) {
         return a.material.renderSortType === MaterialRenderSortType.transparent ? 1 : -1
       }
-      return 0
+      return a.renderSortOrder - b.renderSortOrder
     })
   }
 
-  /** The pass used for rendering shadows. */
-  get shadowPass() {
-    return this._shadowPass
-  }
-
-  /** The pass used for rendering materials. */
-  get materialPass() {
-    return this._materialPass
-  }
-
   /**
-   * Enables shadows for the specified object. Adds the shadow render pass to
-   * the specified object and enables the standard material to use the casting
+   * Enables shadows for the specified object. Adds the shadow render pass to 
+   * the specified object and enables the standard material to use the casting 
    * light.
    * @param object The mesh or model to enable shadows for.
-   * @param light The shadow casting light to associate with the
+   * @param light The shadow casting light to associate with the 
    * object when using the standard material.
    */
   enableShadows(object: Mesh3D | Model, light?: ShadowCastingLight) {
@@ -137,10 +101,10 @@ export class StandardPipeline extends PIXI.ObjectRenderer {
       if (light && mesh.material instanceof StandardMaterial) {
         mesh.material.shadowCastingLight = light
       }
-      mesh.enableRenderPass(this._shadowPass.name)
+      mesh.enableRenderPass(this.shadowPass.name)
     }
     if (light) {
-      this._shadowPass.addShadowCastingLight(light)
+      this.shadowPass.addShadowCastingLight(light)
     }
   }
 
@@ -154,9 +118,9 @@ export class StandardPipeline extends PIXI.ObjectRenderer {
       if (mesh.material instanceof StandardMaterial) {
         mesh.material.shadowCastingLight = undefined
       }
-      mesh.disableRenderPass(this._shadowPass.name)
+      mesh.disableRenderPass(this.shadowPass.name)
     }
   }
 }
 
-PIXI.Renderer.registerPlugin("pipeline", <any>StandardPipeline)
+Renderer.registerPlugin("pipeline", StandardPipeline)

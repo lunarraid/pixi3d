@@ -1,7 +1,9 @@
+import * as PIXI from "pixi.js"
+
 import { glTFChannel } from "./animation/gltf-channel"
 import { glTFAsset } from "./gltf-asset"
 import { glTFAnimation } from "./animation/gltf-animation"
-import { glTFBufferView } from "./gltf-buffer-view"
+import { glTFAttribute } from "./gltf-attribute"
 import { glTFMaterial } from "./gltf-material"
 import { Mesh3D } from "../mesh/mesh"
 import { Container3D } from "../container"
@@ -10,10 +12,9 @@ import { MaterialFactory } from "../material/material-factory"
 import { StandardMaterial } from "../material/standard/standard-material"
 import { MeshGeometry3D } from "../mesh/geometry/mesh-geometry"
 import { Model } from "../model"
-import { TransformMatrix } from "../transform/transform-matrix"
+import { Matrix4 } from "../transform/matrix4"
 import { Skin } from "../skinning/skin"
 import { Joint } from "../skinning/joint"
-import { TextureTransform } from "../texture/textureTransform"
 
 /**
  * Parses glTF assets and creates models and meshes.
@@ -22,6 +23,7 @@ export class glTFParser {
   private _asset: glTFAsset
   private _materialFactory: MaterialFactory
   private _descriptor: any
+  private _textures: PIXI.Texture[] = []
 
   /**
    * Creates a new parser using the specified asset.
@@ -32,6 +34,9 @@ export class glTFParser {
     this._asset = asset
     this._materialFactory = materialFactory || StandardMaterial
     this._descriptor = this._asset.descriptor
+    for (let i = 0; i < this._descriptor.textures?.length; i++) {
+      this._textures.push(this.parseTexture(i))
+    }
   }
 
   /**
@@ -73,8 +78,8 @@ export class glTFParser {
     }
     let buffer = this._asset.buffers[bufferView.buffer]
 
-    return glTFBufferView.from(
-      accessor.componentType, buffer, offset, size, bufferView.byteStride)
+    return glTFAttribute.from(
+      accessor.componentType, buffer, offset, size, bufferView.byteStride, accessor.min, accessor.max)
   }
 
   /**
@@ -121,15 +126,43 @@ export class glTFParser {
     if (!material) {
       return this._materialFactory.create(result)
     }
-    result.occlusionTexture = this.parseTexture(material.occlusionTexture)
-    result.normalTexture = this.parseTexture(material.normalTexture)
-    result.emissiveTexture = this.parseTexture(material.emissiveTexture)
-
+    if (material.occlusionTexture !== undefined) {
+      result.occlusionTexture = this._textures[material.occlusionTexture.index].clone()
+      result.occlusionTexture.strength = material.occlusionTexture.strength
+      result.occlusionTexture.texCoord = material.occlusionTexture.texCoord
+      if (material.occlusionTexture.extensions && material.occlusionTexture.extensions.KHR_texture_transform) {
+        result.occlusionTexture.transform = material.occlusionTexture.extensions.KHR_texture_transform
+        if (material.occlusionTexture.extensions.KHR_texture_transform.texCoord !== undefined) {
+          result.occlusionTexture.texCoord = material.occlusionTexture.extensions.KHR_texture_transform.texCoord
+        }
+      }
+    }
+    if (material.normalTexture !== undefined) {
+      result.normalTexture = this._textures[material.normalTexture.index].clone()
+      result.normalTexture.scale = material.normalTexture.scale || 1
+      result.normalTexture.texCoord = material.normalTexture.texCoord
+      if (material.normalTexture.extensions && material.normalTexture.extensions.KHR_texture_transform) {
+        result.normalTexture.transform = material.normalTexture.extensions.KHR_texture_transform
+        if (material.normalTexture.extensions.KHR_texture_transform.texCoord !== undefined) {
+          result.normalTexture.texCoord = material.normalTexture.extensions.KHR_texture_transform.texCoord
+        }
+      }
+    }
+    if (material.emissiveTexture !== undefined) {
+      result.emissiveTexture = this._textures[material.emissiveTexture.index].clone()
+      result.emissiveTexture.texCoord = material.emissiveTexture.texCoord
+      if (material.emissiveTexture.extensions && material.emissiveTexture.extensions.KHR_texture_transform) {
+        result.emissiveTexture.transform = material.emissiveTexture.extensions.KHR_texture_transform
+        if (material.emissiveTexture.extensions.KHR_texture_transform.texCoord !== undefined) {
+          result.emissiveTexture.texCoord = material.emissiveTexture.extensions.KHR_texture_transform.texCoord
+        }
+      }
+    }
     if (material.doubleSided !== undefined) {
       result.doubleSided = material.doubleSided
     }
-    if (material.emissive) {
-      result.emissive = material.emissive
+    if (material.emissiveFactor) {
+      result.emissiveFactor = material.emissiveFactor
     }
     if (material.alphaMode) {
       result.alphaMode = material.alphaMode
@@ -138,11 +171,29 @@ export class glTFParser {
       result.alphaCutoff = material.alphaCutoff
     }
     let pbr = material.pbrMetallicRoughness
-    result.metallicRoughnessTexture = this.parseTexture(pbr?.metallicRoughnessTexture)
+    if (pbr?.metallicRoughnessTexture !== undefined) {
+      result.metallicRoughnessTexture = this._textures[pbr.metallicRoughnessTexture.index].clone()
+      result.metallicRoughnessTexture.texCoord = pbr.metallicRoughnessTexture.texCoord
+      if (pbr.metallicRoughnessTexture.extensions && pbr.metallicRoughnessTexture.extensions.KHR_texture_transform) {
+        result.metallicRoughnessTexture.transform = pbr.metallicRoughnessTexture.extensions.KHR_texture_transform
+        if (material.metallicRoughnessTexture.extensions.KHR_texture_transform.texCoord !== undefined) {
+          result.metallicRoughnessTexture.texCoord = material.metallicRoughnessTexture.extensions.KHR_texture_transform.texCoord
+        }
+      }
+    }
     if (pbr?.baseColorFactor) {
       result.baseColor = pbr.baseColorFactor
     }
-    result.baseColorTexture = this.parseTexture(pbr?.baseColorTexture)
+    if (pbr?.baseColorTexture !== undefined) {
+      result.baseColorTexture = this._textures[pbr.baseColorTexture.index].clone()
+      result.baseColorTexture.texCoord = pbr.baseColorTexture.texCoord
+      if (pbr.baseColorTexture.extensions && pbr.baseColorTexture.extensions.KHR_texture_transform) {
+        result.baseColorTexture.transform = pbr.baseColorTexture.extensions.KHR_texture_transform
+        if (pbr.baseColorTexture.extensions.KHR_texture_transform.texCoord !== undefined) {
+          result.baseColorTexture.texCoord = pbr.baseColorTexture.extensions.KHR_texture_transform.texCoord
+        }
+      }
+    }
     if (pbr?.metallicFactor !== undefined) {
       result.metallic = pbr.metallicFactor
     }
@@ -150,7 +201,7 @@ export class glTFParser {
       result.roughness = pbr.roughnessFactor
     }
     if (material.extensions) {
-      result.unlit = material.extensions["KHR_materials_unlit"] != undefined
+      result.unlit = material.extensions["KHR_materials_unlit"] !== undefined
     }
     return this._materialFactory.create(result)
   }
@@ -159,16 +210,29 @@ export class glTFParser {
    * Returns the texture used by the specified object.
    * @param source The source object or index.
    */
-  parseTexture(source: any) {
-    if (source === undefined) { return undefined }
-    if (typeof source === "number") {
-      source = { index: source }
+  parseTexture(index: number) {
+    const texture = this._descriptor.textures[index]
+    const image = this._asset.images[texture.source]
+    const result = new PIXI.Texture(new PIXI.BaseTexture(image.baseTexture.resource, {
+      wrapMode: PIXI.WRAP_MODES.REPEAT,
+      // Went back and forth about NO_PREMULTIPLIED_ALPHA. The default in
+      // PixiJS is to have premultiplied alpha textures, but this may not work
+      // so well when rendering objects as opaque (which have alpha equal to 0).
+      // In that case it's impossible to retrieve the original RGB values, 
+      // because they are all zero when using premultiplied alpha. Both the glTF
+      // Sample Viewer and Babylon.js uses NO_PREMULTIPLIED_ALPHA so decided to
+      // do the same.
+      alphaMode: PIXI.ALPHA_MODES.NO_PREMULTIPLIED_ALPHA
+    }))
+    if (this._descriptor.samplers && texture.sampler !== undefined) {
+      const sampler = this._descriptor.samplers[texture.sampler]
+      switch (sampler.wrapS) {
+        case 10497: result.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT; break
+        case 33648: result.baseTexture.wrapMode = PIXI.WRAP_MODES.MIRRORED_REPEAT; break
+        case 33071: result.baseTexture.wrapMode = PIXI.WRAP_MODES.CLAMP; break
+      }
     }
-    let texture = this._asset.images[this._descriptor.textures[source.index].source];
-	  if (source.extensions && source.extensions.KHR_texture_transform) {
-	    TextureTransform.calculateUVTransform(source.extensions.KHR_texture_transform, texture);
-    }
-    return texture;
+    return result
   }
 
   /**
@@ -186,7 +250,7 @@ export class glTFParser {
     return <Mesh3D[]>mesh.primitives.map((primitive: any) => {
       return Object.assign<Mesh3D, Partial<Mesh3D>>(this.parsePrimitive(primitive), {
         name: mesh.name,
-        morphWeights: weights
+        targetWeights: weights
       })
     })
   }
@@ -201,15 +265,8 @@ export class glTFParser {
     if (typeof skin === "number") {
       skin = this._asset.descriptor.skins[skin]
     }
-    let inverseBindMatrices = this.parseBuffer(skin.inverseBindMatrices)
-    let joints: Joint[] = []
-    if (inverseBindMatrices) {
-      for (let i = 0; i < skin.joints.length; i++) {
-        joints.push(new Joint(nodes[skin.joints[i]],
-          <Float32Array>inverseBindMatrices.buffer.slice(i * 16, i * 16 + 16)))
-      }
-    }
-    return new Skin(target, joints)
+    return new Skin(target, 
+      skin.joints.map((joint: number) => <Joint>nodes[joint]))
   }
 
   /**
@@ -256,14 +313,24 @@ export class glTFParser {
   }
 
   /**
-   * Creates a container from the specified node.
-   * @param node The source node object or index.
+   * Creates a container or joint from the specified node index.
+   * @param node The index of the node.
    */
-  parseNode(node: any) {
-    if (typeof node === "number") {
-      node = this._asset.descriptor.nodes[node]
+  parseNode(index: number) {
+    const node = this._asset.descriptor.nodes[index]
+    let joint: Joint | undefined
+    for (let skin of this._asset.descriptor.skins || []) {
+      const i = skin.joints.indexOf(index)
+      if (i >= 0) {
+        // This node is a joint
+        const inverseBindMatrices = this.parseBuffer(skin.inverseBindMatrices)
+        const inverseBindMatrix = <Float32Array>inverseBindMatrices?.buffer.slice(i * 16, i * 16 + 16)
+        joint = Object.assign<Joint, Partial<Joint>>(new Joint(inverseBindMatrix), {
+          name: node.name
+        })
+      }
     }
-    let container = Object.assign<Container3D, Partial<Container3D>>(new Container3D(), {
+    let container = joint || Object.assign<Container3D, Partial<Container3D>>(new Container3D(), {
       name: node.name
     })
     if (node.translation) {
@@ -280,14 +347,14 @@ export class glTFParser {
       container.scale.set(node.scale[0], node.scale[1], node.scale[2])
     }
     if (node.matrix) {
-      container.transform.setFromMatrix(new TransformMatrix(node.matrix))
+      container.transform.setFromMatrix(new Matrix4(node.matrix))
     }
     return <Container3D>container
   }
 
   parseModel() {
-    let nodes = <Container3D[]>this._descriptor.nodes.map((n: any) => {
-      return this.parseNode(n)
+    let nodes = <Container3D[]>this._descriptor.nodes.map((n: any, i: number) => {
+      return this.parseNode(i)
     })
     let scene = this._descriptor.scenes[this._asset.descriptor.scene || 0]
     let model = new Model()

@@ -1,5 +1,4 @@
-import * as PIXI from "pixi.js"
-
+import { State, Renderer, Program } from "pixi.js"
 import { Cubemap } from "../cubemap/cubemap"
 import { MeshShader } from "../mesh/mesh-shader"
 import { Camera } from "../camera/camera"
@@ -30,7 +29,7 @@ export class SkyboxMaterial extends Material {
   constructor(cubemap: Cubemap) {
     super()
     this._cubemap = cubemap
-    this.state = Object.assign(new PIXI.State(), {
+    this.state = Object.assign(new State(), {
       culling: true, clockwiseFrontFace: true, depthTest: true
     })
   }
@@ -38,13 +37,13 @@ export class SkyboxMaterial extends Material {
   updateUniforms(mesh: Mesh3D, shader: MeshShader) {
     let camera = this.camera || Camera.main
 
-    shader.uniforms.u_ModelMatrix = mesh.worldTransform.toArray()
+    shader.uniforms.u_ModelMatrix = mesh.worldTransform.array
     shader.uniforms.u_View = camera.view
     shader.uniforms.u_Projection = camera.projection
     shader.uniforms.u_EnvironmentSampler = this.cubemap
   }
 
-  render(mesh: Mesh3D, renderer: PIXI.Renderer) {
+  render(mesh: Mesh3D, renderer: Renderer) {
     // Disable writing to the depth buffer. This is because we want all other 
     // objects to be in-front of the skybox.
     renderer.gl.depthMask(false)
@@ -57,7 +56,7 @@ export class SkyboxMaterial extends Material {
     let frag = require("./shader/skybox.frag")
 
     if (this.cubemap.valid) {
-      return new MeshShader(PIXI.Program.from(vert, frag))
+      return new MeshShader(Program.from(vert, frag))
     }
   }
 }

@@ -1,5 +1,4 @@
-import * as PIXI from "pixi.js"
-
+import { Renderer, Buffer } from "pixi.js"
 import { MeshGeometry3D } from "../mesh/geometry/mesh-geometry"
 import { Mesh3D } from "../mesh/mesh"
 import { ShadowCastingLight } from "./shadow-casting-light"
@@ -11,15 +10,15 @@ const MAX_SUPPORTED_JOINTS = 256
 export class TextureShader extends ShadowShader {
   private _jointMatrixTexture: StandardMaterialMatrixTexture
 
+  static isSupported(renderer: Renderer) {
+    return StandardMaterialMatrixTexture.isSupported(renderer)
+  }
+
   get maxSupportedJoints() {
     return MAX_SUPPORTED_JOINTS
   }
 
-  static isSupported(renderer: PIXI.Renderer) {
-    return StandardMaterialMatrixTexture.isSupported(renderer)
-  }
-
-  constructor(renderer: PIXI.Renderer) {
+  constructor(renderer: Renderer) {
     super(renderer, [
       "USE_SKINNING 1", "USE_SKINNING_TEXTURE 1", "MAX_JOINT_COUNT " + MAX_SUPPORTED_JOINTS
     ])
@@ -30,11 +29,11 @@ export class TextureShader extends ShadowShader {
   createShaderGeometry(geometry: MeshGeometry3D) {
     let result = super.createShaderGeometry(geometry)
     if (geometry.joints) {
-      result.addAttribute("a_Joint1", new PIXI.Buffer(geometry.joints.buffer),
+      result.addAttribute("a_Joint1", new Buffer(geometry.joints.buffer),
         4, false, geometry.joints.componentType, geometry.joints.stride)
     }
     if (geometry.weights) {
-      result.addAttribute("a_Weight1", new PIXI.Buffer(geometry.weights.buffer),
+      result.addAttribute("a_Weight1", new Buffer(geometry.weights.buffer),
         4, false, geometry.weights.componentType, geometry.weights.stride)
     }
     return result
@@ -49,8 +48,7 @@ export class TextureShader extends ShadowShader {
     if (!mesh.skin) {
       return
     }
-    let { jointVertexMatrices } = mesh.skin.calculateJointMatrices()
-    this._jointMatrixTexture.updateBuffer(jointVertexMatrices)
+    this._jointMatrixTexture.updateBuffer(mesh.skin.jointMatrices)
     this.uniforms.u_jointMatrixSampler = this._jointMatrixTexture
   }
 }

@@ -1,6 +1,5 @@
-import * as PIXI from "pixi.js"
-
 import { Color } from "../color"
+import { RenderTexture, Renderer } from "pixi.js"
 import { RenderPass } from "./render-pass"
 import { Mesh3D } from "../mesh/mesh"
 
@@ -8,7 +7,7 @@ import { Mesh3D } from "../mesh/mesh"
  * Pass used for rendering materials.
  */
 export class MaterialRenderPass implements RenderPass {
-  private _renderTexture?: PIXI.RenderTexture
+  private _renderTexture?: RenderTexture
 
   /** The color (r,g,b,a) used for clearing the render texture. If this value is empty, the render texture will not be cleared. */
   clearColor?= new Color(0, 0, 0, 0)
@@ -18,7 +17,7 @@ export class MaterialRenderPass implements RenderPass {
     return this._renderTexture
   }
 
-  set renderTexture(value: PIXI.RenderTexture | undefined) {
+  set renderTexture(value: RenderTexture | undefined) {
     this._renderTexture = value
   }
 
@@ -27,32 +26,29 @@ export class MaterialRenderPass implements RenderPass {
    * @param renderer The renderer to use.
    * @param name The name of the render pass.
    */
-  constructor(public renderer: PIXI.Renderer, public name: string) {
-  }
+  constructor(public renderer: Renderer, public name: string) { }
 
   clear() {
     if (this._renderTexture && this.clearColor) {
+      const current = this.renderer.renderTexture.current
       this.renderer.renderTexture.bind(this._renderTexture)
       this.renderer.renderTexture.clear(Array.from(this.clearColor.rgba))
-      this.renderer.renderTexture.bind(undefined)
+      this.renderer.renderTexture.bind(current)
     }
   }
 
   render(meshes: Mesh3D[]) {
-    const currentRenderTexture = this.renderer.renderTexture.current
-
+    const current = this.renderer.renderTexture.current
     if (this._renderTexture) {
       this.renderer.renderTexture.bind(this._renderTexture)
     }
-
     for (let mesh of meshes) {
       if (mesh.material) {
         mesh.material.render(mesh, this.renderer)
       }
     }
-
     if (this._renderTexture) {
-      this.renderer.renderTexture.bind(currentRenderTexture)
+      this.renderer.renderTexture.bind(current)
     }
   }
 }

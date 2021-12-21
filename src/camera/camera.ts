@@ -28,6 +28,22 @@ export class Camera extends Container3D implements TransformId {
   private _viewProjection?: MatrixComponent
   private _orthographic = false
   private _orthographicSize = 10
+  private _obliqueness = new PIXI.ObservablePoint(() => {
+    this._transformId++
+  }, undefined)
+
+  /**
+   * Used for making the frustum oblique, which means that one side is at a
+   * smaller angle to the centre line than the opposite side. Only works with
+   * perspective projection.
+   */
+  get obliqueness() {
+    return this._obliqueness
+  }
+
+  set obliqueness(value: PIXI.IPointData) {
+    this._obliqueness.copyFrom(value)
+  }
 
   /** Main camera which is used by default. */
   static main: Camera
@@ -40,17 +56,26 @@ export class Camera extends Container3D implements TransformId {
   constructor(public renderer: PIXI.Renderer) {
     super()
 
+    let aspect = renderer.width / renderer.height
+    let localID = -1
+
     this.renderer.on("prerender", () => {
       if (!this._aspect) {
         // When there is no specific aspect set, this is used for the 
         // projection matrix to always update each frame (in case when the 
         // renderer aspect ratio has changed).
-        this._transformId++
+        if (renderer.width / renderer.height !== aspect) {
+          this._transformId++
+          aspect = renderer.width / renderer.height
+        }
       }
-      if (!this.parent) {
+      // @ts-ignore: _localID do exist, but be careful if this changes.
+      if (!this.parent && localID !== this.transform._localID) {
         // When the camera is not attached to the scene hierarchy the transform 
         // needs to be updated manually.
         this.transform.updateTransform()
+        // @ts-ignore: _localID do exist, but be careful if this changes.
+        localID = this.transform._localID
       }
     })
     if (!Camera.main) {
@@ -58,6 +83,14 @@ export class Camera extends Container3D implements TransformId {
     }
     this.transform.position.z = 5
     this.transform.rotationQuaternion.setEulerAngles(0, 180, 0)
+  }
+
+  destroy(options?: boolean | PIXI.IDestroyOptions) {
+    super.destroy(options)
+    if (this === Camera.main) {
+      // @ts-ignore It's ok, main camera was destroyed.
+      Camera.main = undefined
+    }
   }
 
   /**
@@ -73,7 +106,6 @@ export class Camera extends Container3D implements TransformId {
       this._orthographicSize = value; this._transformId++
     }
   }
-
 
   /**
    * Camera will render objects uniformly, with no sense of perspective.
@@ -94,9 +126,12 @@ export class Camera extends Container3D implements TransformId {
    * @param y Screen y coordinate.
    * @param viewSize The size of the view when not rendering to the entire screen.
    */
-  screenToRay(x: number, y: number, viewSize: { width: number, height: number } = this.renderer) {
+  screenToRay(x: number, y: number, viewSize: { width: number, height: number } = this.renderer.screen) {
     let screen = this.screenToWorld(x, y, 1, undefined, viewSize)
     if (screen) {
+      if (this.orthographic) {
+        return new Ray(screen.array, this.worldTransform.forward)
+      }
       return new Ray(this.worldTransform.position,
         Vec3.subtract(screen.array, this.worldTransform.position, vec3))
     }
@@ -110,7 +145,7 @@ export class Camera extends Container3D implements TransformId {
    * @param point Point to set.
    * @param viewSize The size of the view when not rendering to the entire screen.
    */
-  screenToWorld(x: number, y: number, distance: number, point = new ObservablePoint3D(() => { }, undefined), viewSize: { width: number, height: number } = this.renderer) {
+  screenToWorld(x: number, y: number, distance: number, point = new ObservablePoint3D(() => { }, undefined), viewSize: { width: number, height: number } = this.renderer.screen) {
     // Make sure the transform is updated in case something has been changed, 
     // otherwise it may be using wrong values.
     this.transform.updateTransform(this.parent?.transform)
@@ -147,7 +182,7 @@ export class Camera extends Container3D implements TransformId {
    * @param point Point to set.
    * @param viewSize The size of the view when not rendering to the entire screen.
    */
-  worldToScreen(x: number, y: number, z: number, point = new PIXI.Point(), viewSize: { width: number, height: number } = this.renderer) {
+  worldToScreen(x: number, y: number, z: number, point = new PIXI.Point(), viewSize: { width: number, height: number } = this.renderer.screen) {
     // Make sure the transform is updated in case something has been changed, 
     // otherwise it may be using wrong values.
     this.transform.updateTransform(this.parent?.transform)
@@ -161,8 +196,8 @@ export class Camera extends Container3D implements TransformId {
         clipSpace[i] /= clipSpace[3]
       }
     }
-    return point.set((clipSpace[0] + 1) / 2 * viewSize.width,
-      viewSize.height - (clipSpace[1] + 1) / 2 * viewSize.height)
+    return point.set((
+      clipSpace[0] + 1) / 2 * viewSize.width, viewSize.height - (clipSpace[1] + 1) / 2 * viewSize.height)
   }
 
   private _fieldOfView = 60
@@ -226,6 +261,8 @@ export class Camera extends Container3D implements TransformId {
           Mat4.ortho(-this._orthographicSize * aspect, this._orthographicSize * aspect, -this._orthographicSize, this._orthographicSize, this._near, this._far, data)
         } else {
           Mat4.perspective(this._fieldOfView * PIXI.DEG_TO_RAD, aspect, this._near, this._far, data)
+          data[8] = this._obliqueness.x
+          data[9] = this._obliqueness.y
         }
       })
     }
@@ -256,4 +293,4 @@ export class Camera extends Container3D implements TransformId {
   }
 }
 
-PIXI.Renderer.registerPlugin("camera", <any>Camera)
+PIXI.Renderer.registerPlugin("camera", Camera)

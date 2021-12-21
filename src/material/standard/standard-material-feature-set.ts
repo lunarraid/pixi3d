@@ -1,17 +1,17 @@
-import * as PIXI from "pixi.js"
-
+import { Renderer, settings } from "pixi.js"
 import { MeshGeometry3D } from "../../mesh/geometry/mesh-geometry"
 import { StandardMaterialAlphaMode } from "./standard-material-alpha-mode"
 import { StandardMaterialDebugMode } from "./standard-material-debug-mode"
 import { StandardMaterial } from "./standard-material"
 import { LightingEnvironment } from "../../lighting/lighting-environment"
 import { Mesh3D } from "../../mesh/mesh"
-import { Platform } from "../../platform"
+import { Capabilities } from "../../capabilities"
 import { StandardMaterialMatrixTexture } from "./standard-material-matrix-texture"
-import { Console } from "../../console"
+import { Debug } from "../../debug"
+import { Message } from "../../message"
 
 export namespace StandardMaterialFeatureSet {
-  export function build(renderer: PIXI.Renderer, mesh: Mesh3D, geometry: MeshGeometry3D, material: StandardMaterial, lightingEnvironment: LightingEnvironment) {
+  export function build(renderer: Renderer, mesh: Mesh3D, geometry: MeshGeometry3D, material: StandardMaterial, lightingEnvironment: LightingEnvironment) {
     let features: string[] = []
 
     if (mesh.instances.length > 0) {
@@ -26,8 +26,11 @@ export namespace StandardMaterialFeatureSet {
     if (geometry.normals) {
       features.push("HAS_NORMALS 1")
     }
-    if (geometry.uvs) {
+    if (geometry.uvs && geometry.uvs[0]) {
       features.push("HAS_UV_SET1 1")
+    }
+    if (geometry.uvs && geometry.uvs[1]) {
+      features.push("HAS_UV_SET2 1")
     }
     if (geometry.tangents) {
       features.push("HAS_TANGENTS 1")
@@ -44,8 +47,8 @@ export namespace StandardMaterialFeatureSet {
           features.push("HAS_TARGET_TANGENT" + i)
         }
       }
-      if (mesh.morphWeights) {
-        features.push(`WEIGHT_COUNT ${mesh.morphWeights.length}`)
+      if (mesh.targetWeights) {
+        features.push(`WEIGHT_COUNT ${mesh.targetWeights.length}`)
         features.push("USE_MORPHING 1")
       }
     }
@@ -56,17 +59,7 @@ export namespace StandardMaterialFeatureSet {
       features.push("HAS_WEIGHT_SET1 1")
     }
     if (mesh.skin) {
-      if (isJointMatrixTextureRequired(mesh.skin.joints.length, renderer)) {
-        if (StandardMaterialMatrixTexture.isSupported(renderer)) {
-          features.push("USE_SKINNING 1")
-          features.push("USE_SKINNING_TEXTURE 1")
-        } else {
-          Console.error(`PIXI3D: Mesh contains ${mesh.skin.joints.length} joints, which is more than supported on this device. Skinning will be disabled and result may not be as expected.`)
-        }
-      } else {
-        features.push("USE_SKINNING 1")
-      }
-      features.push(`JOINT_COUNT ${mesh.skin.joints.length}`)
+      addSkinningFeatures(mesh, features, renderer)
     }
     if (material.unlit) {
       features.push("MATERIAL_UNLIT 1")
@@ -80,8 +73,10 @@ export namespace StandardMaterialFeatureSet {
       if (!lightingEnvironment.imageBasedLighting.valid) {
         return undefined
       }
-      if (Platform.isShaderTextureLodSupported(renderer)) {
+      if (Capabilities.isShaderTextureLodSupported(renderer)) {
         features.push("USE_TEX_LOD 1")
+      } else {
+        Debug.warn(Message.imageBasedLightingShaderTextureLodNotSupported)
       }
       features.push("USE_IBL 1")
     }
@@ -92,7 +87,7 @@ export namespace StandardMaterialFeatureSet {
       if (!material.baseColorTexture.valid) {
         return undefined
       }
-      if ((<any>material.baseColorTexture).uvTransform) {
+      if (material.baseColorTexture.transform) {
         features.push("HAS_BASECOLOR_UV_TRANSFORM 1");
       }
       features.push("HAS_BASE_COLOR_MAP 1")
@@ -101,7 +96,7 @@ export namespace StandardMaterialFeatureSet {
       if (!material.emissiveTexture.valid) {
         return undefined
       }
-      if ((<any>material.emissiveTexture).uvTransform) {
+      if (material.emissiveTexture.transform) {
         features.push("HAS_EMISSIVE_UV_TRANSFORM 1");
       }
       features.push("HAS_EMISSIVE_MAP 1")
@@ -110,7 +105,7 @@ export namespace StandardMaterialFeatureSet {
       if (!material.normalTexture.valid) {
         return undefined
       }
-      if ((<any>material.normalTexture).uvTransform) {
+      if (material.normalTexture.transform) {
         features.push("HAS_NORMAL_UV_TRANSFORM 1");
       }
       features.push("HAS_NORMAL_MAP 1")
@@ -119,7 +114,7 @@ export namespace StandardMaterialFeatureSet {
       if (!material.metallicRoughnessTexture.valid) {
         return undefined
       }
-      if ((<any>material.metallicRoughnessTexture).uvTransform) {
+      if (material.metallicRoughnessTexture.transform) {
         features.push("HAS_METALLICROUGHNESS_UV_TRANSFORM 1");
       }
       features.push("HAS_METALLIC_ROUGHNESS_MAP 1")
@@ -128,7 +123,7 @@ export namespace StandardMaterialFeatureSet {
       if (!material.occlusionTexture.valid) {
         return undefined
       }
-      if ((<any>material.occlusionTexture).uvTransform) {
+      if (material.occlusionTexture.transform) {
         features.push("HAS_OCCLUSION_UV_TRANSFORM 1");
       }
       features.push("HAS_OCCLUSION_MAP 1")
@@ -179,12 +174,55 @@ export namespace StandardMaterialFeatureSet {
     return features
   }
 
-  function isJointMatrixTextureRequired(jointsCount: number, renderer: PIXI.Renderer) {
-    let uniformsRequiredForMostFeatures = 25
-    let availableJointUniforms =
-      Platform.getMaxVertexUniformVectors(renderer) - uniformsRequiredForMostFeatures
-    let uniformsRequiredPerJoint = 8
-    return jointsCount > Math.floor(availableJointUniforms / uniformsRequiredPerJoint)
+  function addSkinningFeatures(mesh: Mesh3D, features: string[], renderer: Renderer) {
+    if (!mesh.skin) {
+      return
+    }
+    let uniformsRequiredForOtherFeatures = 20
+    let availableVertexUniforms =
+      Capabilities.getMaxVertexUniformVectors(renderer) - uniformsRequiredForOtherFeatures
+    let uniformsRequiredPerJoint = 8 // 4 per matrix times 2 (matrices and normals)
+    let maxJointCount = Math.floor(availableVertexUniforms / uniformsRequiredPerJoint)
+    let uniformsSupported = mesh.skin.joints.length <= maxJointCount
+
+    const addFeatureSetForUniforms = () => {
+      features.push("USE_SKINNING 1")
+      features.push(`JOINT_COUNT ${mesh.skin?.joints.length}`)
+    }
+
+    const addFeatureSetForTextures = () => {
+      features.push("USE_SKINNING 1")
+      features.push(`JOINT_COUNT ${mesh.skin?.joints.length}`)
+      features.push("USE_SKINNING_TEXTURE 1")
+    }
+
+    // @ts-ignore Use PixiJS's already existing settings object for now.
+    if (settings.PREFER_UNIFORMS_WHEN_UPLOADING_SKIN_JOINTS) {
+      if (uniformsSupported) {
+        addFeatureSetForUniforms(); return
+      }
+      if (StandardMaterialMatrixTexture.isSupported(renderer)) {
+        addFeatureSetForTextures(); return
+      } else {
+        Debug.error(Message.meshVertexSkinningNumberOfJointsNotSupported, {
+          joints: mesh.skin.joints.length,
+          maxJoints: maxJointCount
+        })
+      }
+    } else {
+      if (StandardMaterialMatrixTexture.isSupported(renderer)) {
+        addFeatureSetForTextures(); return
+      }
+      Debug.warn(Message.meshVertexSkinningFloatingPointTexturesNotSupported)
+      if (uniformsSupported) {
+        addFeatureSetForUniforms()
+      } else {
+        Debug.error(Message.meshVertexSkinningNumberOfJointsNotSupported, {
+          joints: mesh.skin.joints.length,
+          maxJoints: maxJointCount
+        })
+      }
+    }
   }
 
   export function hasSkinningTextureFeature(features: string[]) {

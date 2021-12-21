@@ -1,5 +1,4 @@
-import * as PIXI from "pixi.js"
-
+import { Renderer } from "pixi.js"
 import { RenderPass } from "../pipeline/render-pass"
 import { Mesh3D } from "../mesh/mesh"
 import { ShadowFilter } from "./shadow-filter"
@@ -19,7 +18,7 @@ export class ShadowRenderPass implements RenderPass {
    * @param renderer The renderer to use.
    * @param name The name for the render pass.
    */
-  constructor(public renderer: PIXI.Renderer, public name = "shadow") {
+  constructor(public renderer: Renderer, public name = "shadow") {
     this._filter = new ShadowFilter(renderer)
     this._shadow = new ShadowRenderer(renderer)
   }
@@ -52,16 +51,20 @@ export class ShadowRenderPass implements RenderPass {
   }
 
   render(meshes: Mesh3D[]) {
+    if (meshes.length === 0 || this._lights.length === 0) {
+      return
+    }
+    const current = this.renderer.renderTexture.current
     for (let shadowCastingLight of this._lights) {
       this.renderer.renderTexture.bind(shadowCastingLight.shadowTexture)
       shadowCastingLight.updateLightViewProjection()
       for (let mesh of meshes) {
         this._shadow.render(mesh, shadowCastingLight)
       }
-      this.renderer.renderTexture.bind(undefined)
       if (shadowCastingLight.softness > 0) {
         this._filter.applyGaussianBlur(shadowCastingLight)
       }
     }
+    this.renderer.renderTexture.bind(current)
   }
 }

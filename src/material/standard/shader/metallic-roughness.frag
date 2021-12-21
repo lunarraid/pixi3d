@@ -66,7 +66,6 @@ struct Light
 const int LightType_Directional = 0;
 const int LightType_Point = 1;
 const int LightType_Spot = 2;
-const int LightType_Ambient = 3;
 
 #ifdef USE_PUNCTUAL
 uniform Light u_Lights[LIGHT_COUNT];
@@ -90,6 +89,10 @@ uniform float u_GlossinessFactor;
 
 #ifdef ALPHAMODE_MASK
 uniform float u_AlphaCutoff;
+#endif
+
+#ifdef USE_SHADOW_MAPPING
+uniform int u_ShadowLightIndex;
 #endif
 
 uniform vec3 u_Camera;
@@ -267,11 +270,6 @@ vec3 applySpotLight(Light light, MaterialInfo materialInfo, vec3 normal, vec3 vi
     return rangeAttenuation * spotAttenuation * light.intensity * light.color * shade;
 }
 
-vec3 applyAmbientLight(Light light, MaterialInfo materialInfo)
-{
-    return light.intensity * light.color * diffuse(materialInfo);
-}
-
 #ifdef WEBGL2
     out vec4 FRAG_COLOR;
 #endif
@@ -406,10 +404,17 @@ void main()
 #ifdef USE_PUNCTUAL
     for (int i = 0; i < LIGHT_COUNT; ++i)
     {
+        float shadowContribution = shadow;
+        #ifdef USE_SHADOW_MAPPING
+        if (u_ShadowLightIndex != i) 
+        {
+            shadowContribution = 1.0;
+        }
+        #endif
         Light light = u_Lights[i];
         if (light.type == LightType_Directional)
         {
-            color += applyDirectionalLight(light, materialInfo, normal, view, shadow);
+            color += applyDirectionalLight(light, materialInfo, normal, view, shadowContribution);
         }
         else if (light.type == LightType_Point)
         {
@@ -417,12 +422,8 @@ void main()
         }
         else if (light.type == LightType_Spot)
         {
-            color += applySpotLight(light, materialInfo, normal, view, shadow);
+            color += applySpotLight(light, materialInfo, normal, view, shadowContribution);
         }
-        else if (light.type == LightType_Ambient) 
-        {
- 			color += applyAmbientLight(light, materialInfo);
- 		}
     }
 #endif
 

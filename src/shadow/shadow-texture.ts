@@ -1,35 +1,34 @@
-import * as PIXI from "pixi.js"
-
+import { Renderer, RenderTexture, SCALE_MODES, TYPES } from "pixi.js"
+import { Capabilities } from "../capabilities"
 import { ShadowQuality } from "./shadow-quality"
-import { Platform } from "../platform"
 
 export namespace ShadowTexture {
-  export function create(renderer: PIXI.Renderer, size: number, quality: ShadowQuality) {
+  export function create(renderer: Renderer, size: number, quality: ShadowQuality) {
     let type = getSupportedType(renderer, quality)
-    return PIXI.RenderTexture.create({
+    return RenderTexture.create({
       width: size, height: size, type: type, scaleMode: getSupportedScaleMode(renderer)
     })
   }
 
-  function getSupportedScaleMode(renderer: PIXI.Renderer) {
-    if (Platform.supportsFloatLinear(renderer)) {
-      return PIXI.SCALE_MODES.LINEAR
+  function getSupportedScaleMode(renderer: Renderer) {
+    if (Capabilities.supportsFloatLinear(renderer)) {
+      return SCALE_MODES.LINEAR
     }
-    return PIXI.SCALE_MODES.NEAREST
+    return SCALE_MODES.NEAREST
   }
 
-  function getSupportedType(renderer: PIXI.Renderer, quality: ShadowQuality) {
+  function getSupportedType(renderer: Renderer, quality: ShadowQuality) {
     if (quality === ShadowQuality.high) {
-      if (Platform.isFloatFramebufferSupported(renderer)) {
-        return PIXI.TYPES.FLOAT
+      if (Capabilities.isFloatFramebufferSupported(renderer)) {
+        return TYPES.FLOAT
       }
-      if (Platform.isHalfFloatFramebufferSupported(renderer)) {
-        return PIXI.TYPES.HALF_FLOAT
+      if (Capabilities.isHalfFloatFramebufferSupported(renderer)) {
+        return TYPES.HALF_FLOAT
       }
     }
-    if (quality === ShadowQuality.medium && Platform.isHalfFloatFramebufferSupported(renderer)) {
-      return PIXI.TYPES.HALF_FLOAT
+    if (quality === ShadowQuality.medium && Capabilities.isHalfFloatFramebufferSupported(renderer)) {
+      return TYPES.HALF_FLOAT
     }
-    return PIXI.TYPES.UNSIGNED_BYTE
+    return TYPES.UNSIGNED_BYTE
   }
 }

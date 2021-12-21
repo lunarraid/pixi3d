@@ -7,6 +7,9 @@ export class Mat4 {
   static create() {
     return <Float32Array>mat4.create()
   }
+  static translate(mat: Float32Array, v: Float32Array, out = new Float32Array(16)) {
+    return <Float32Array>mat4.translate(out, mat, v)
+  }
   static getScaling(mat: Float32Array, out = new Float32Array(3)) {
     return <Float32Array>mat4.getScaling(out, mat)
   }
@@ -66,5 +69,8 @@ export class Mat4 {
   }
   static rotate(a: Float32Array, rad: number, axis: Float32Array, out = new Float32Array(16)) {
     return <Float32Array>mat4.rotate(out, a, rad, axis)
+  }
+  static scale(a: Float32Array, v: Float32Array, out = new Float32Array(16)) {
+    return <Float32Array>mat4.scale(out, a, v)
   }
 }

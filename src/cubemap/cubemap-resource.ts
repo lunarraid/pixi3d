@@ -1,9 +1,7 @@
-import * as PIXI from "pixi.js"
-
-import { CubeResource } from "../pixi/cube-resource"
+import { CubeResource } from "../resource/cube-resource"
 import { MipmapResource } from "./mipmap-resource"
 
-import type { GLTexture, Renderer, BaseTexture } from 'pixi.js';
+import { GLTexture, Renderer, BaseTexture } from "pixi.js"
 
 export type MipmapResourceArray = [
   MipmapResource,
@@ -19,7 +17,7 @@ export class CubemapResource extends CubeResource {
     super(source)
   }
 
-  style(renderer: PIXI.Renderer) {
+  style(renderer: Renderer) {
     let gl = renderer.gl
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)

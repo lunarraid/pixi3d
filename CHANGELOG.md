@@ -4,7 +4,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.1] - 2021-11-30
+### Fixed
+- Fixed an issue which caused `PostProcessingSprite` to crash if application/renderer was destroyed.
+
+## [1.1.0] - 2021-11-20
+### Added
+- Added support to use textures included in spritesheets when using `StandardMaterial`.
+- Added support for camera obliqueness.
+
+## [1.0.0] - 2021-11-01
+### Added
+- Debug object which can be used to more easily debug on mobile devices.
+
+### Changed
+- Vertex skinning now uses textures for joint matrices as default.
+- Better error handling when vertex skinning is not supported on device/environment.
+- Use lower case for `SpriteBillboardType` "spherical" and "cylindrical".
+
+### Fixed
+- Fixed an issue which caused shadows to be displayed incorrectly when using multiple lights.
+- Fixed an issue which caused a crash if application/renderer was destroyed.
+
+## [0.9.9] - 2021-09-30
+### Added
+- Added `Sprite3D` which works like regular PixiJS 2D sprites but in 3D space.
+- Improved support for glTF.
+- Added `fromHex` function to `Color`.
+- Added `TextureTransform` which can used to offset, scale and rotate texture coordinates.
+- Added `min` and `max` values for mesh geometry attributes to be able to create bounds for a mesh.
+- Meshes rendered using `StandardPipeline` is now sorted by `renderSortOrder`.
+
+### Changed
+- Removed `setFromMultiply` from `TransformMatrix`, use `multiply` function instead.
+- Removed `factory` from `StandardMaterial`, use `create` function instead.
+- Removed `addRenderPass` and `removeRenderPass` from `StandardPipeline`, use `renderPasses` array instead.
+- `Joint` now extends `Container3D`.
+- Removed ambient lights, use `ImageBasedLighting` with `Cubemap.fromColor` instead.
+- Renamed `TransformMatrix` to `Matrix4`.
+- Renamed `morphWeights` to `targetWeights` on `Mesh3D`.
+- Setting `renderSortType` on `Material` no longer changes `depthMask`.
+- Default exposure for `StandardMaterial` was changed from 3 to 1.
+- Changed `enabledRenderPasses` on `Mesh3D` to an object instead of an array.
+- Changed the constructor for `ShadowCastingLight` to use an options object. Arguments `softness` and `shadowArea` was added as properties instead.
+
+### Fixed
+- Fixed issues which caused `Camera`, `PostProcessingSprite` and `PickingHitArea` to not work correctly when renderer resolution was more than 1.
+- Fixed an issue which caused `screenToRay` on `Camera` to return incorrect results when `orthographic = true`.
+- Fixed orientation for default IBL lookup texture.
+
+## [0.9.8] - 2021-08-23
+### Added
+- Added `scale` function to `Mat4`.
+
+### Changed
+- Setting `alphaMode` on `StandardMaterial` no longer changes `depthMask` or `renderSortType`.
+- Setting `renderSortType` on `Material` also changes `depthMask`.
+
+### Fixed
+- Fixed an issue which caused a crash when application was destroyed.
+
+## [0.9.7] - 2021-08-11
+### Added
+- New functionality to `PostProcessingSprite` so it can be used for rendering a 3D object as a 2D sprite.
+- Added `translate` function to `Mat4`.
+- Added `lookAt` function to `Transform3D` to make it easier for an object to be rotated towards a specified point.
+
+## [0.9.6] - 2021-07-28
 ### Added
 - Added `destroy` function to an instanced model.
 - Added functionality to create a `Color` object from bytes.

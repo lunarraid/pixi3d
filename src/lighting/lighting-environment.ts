@@ -1,5 +1,4 @@
-import * as PIXI from "pixi.js"
-
+import { Renderer, IRendererPlugin } from "pixi.js"
 import { ImageBasedLighting } from "./image-based-lighting"
 import { Light } from "./light"
 
@@ -7,8 +6,9 @@ import { Light } from "./light"
  * A lighting environment represents the different lighting conditions for a 
  * specific object or an entire scene.
  */
-export class LightingEnvironment {
-  private _imageBasedLighting?: ImageBasedLighting
+export class LightingEnvironment implements IRendererPlugin {
+  /** The image-based lighting object. */
+  imageBasedLighting?: ImageBasedLighting
 
   /** The lights affecting this lighting environment. */
   lights: Light[] = []
@@ -20,7 +20,7 @@ export class LightingEnvironment {
    * Creates a new lighting environment using the specified renderer.
    * @param renderer The renderer to use.
    */
-  constructor(public renderer: PIXI.Renderer, imageBasedLighting?: ImageBasedLighting) {
+  constructor(public renderer: Renderer, imageBasedLighting?: ImageBasedLighting) {
     this.renderer.on("prerender", () => {
       for (let light of this.lights) {
         // Make sure the transform has been updated in the case where the light
@@ -33,17 +33,16 @@ export class LightingEnvironment {
     if (!LightingEnvironment.main) {
       LightingEnvironment.main = this
     }
-    this._imageBasedLighting = imageBasedLighting
+    this.imageBasedLighting = imageBasedLighting
   }
 
-  get imageBasedLighting() {
-    return this._imageBasedLighting
+  destroy() {
   }
 
   /** Value indicating if this object is valid to be used for rendering. */
   get valid() {
-    return !this._imageBasedLighting || this._imageBasedLighting.valid
+    return !this.imageBasedLighting || this.imageBasedLighting.valid
   }
 }
 
-PIXI.Renderer.registerPlugin("lighting", <any>LightingEnvironment)
+Renderer.registerPlugin("lighting", LightingEnvironment)

@@ -1,4 +1,4 @@
-import { Animation } from "../../animation"
+import { Animation, FrameMarker } from "../../animation"
 import { glTFChannel } from "./gltf-channel"
 
 /**
@@ -14,11 +14,13 @@ export class glTFAnimation extends Animation {
    * @param channels The channels used by this animation.
    * @param name The name for the animation.
    */
-  constructor(channels: glTFChannel[], name?: string) {
-    super(name)
+  constructor(channels: glTFChannel[], name?: string, frameMarkers?: FrameMarker[]) {
+    super(name, frameMarkers)
+
     for (let channel of channels) {
       this._duration = Math.max(this._duration, channel.duration)
     }
+
     this._channels = channels
   }
 

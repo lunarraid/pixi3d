@@ -10,6 +10,7 @@ import { Capabilities } from "../../capabilities"
 import { StandardMaterialMatrixTexture } from "./standard-material-matrix-texture"
 import { Debug } from "../../debug"
 import { Message } from "../../message"
+import { CubemapFormat } from "../../cubemap/cubemap-format"
 
 export namespace StandardMaterialFeatureSet {
   export function build(renderer: Renderer, mesh: Mesh3D, geometry: MeshGeometry3D, material: StandardMaterial, lightingEnvironment: LightingEnvironment) {
@@ -25,10 +26,11 @@ export namespace StandardMaterialFeatureSet {
       features.push("WEBGL2 1")
     }
     if (geometry.colors) {
-      // Need to figure out how to detect if vec3 or vec4 should be
-      // used. For now disable vec4.
-      features.push("HAS_VERTEX_COLOR_VEC3 1")
-      // features.push("HAS_VERTEX_COLOR_VEC4 1") 
+      if (geometry.colors.componentCount === 3) {
+        features.push("HAS_VERTEX_COLOR_VEC3 1")
+      } else {
+        features.push("HAS_VERTEX_COLOR_VEC4 1")
+      }
     }
     if (geometry.normals) {
       features.push("HAS_NORMALS 1")
@@ -54,7 +56,7 @@ export namespace StandardMaterialFeatureSet {
           features.push("HAS_TARGET_TANGENT" + i)
         }
       }
-      if (mesh.targetWeights) {
+      if (mesh.targetWeights && mesh.targetWeights.length > 0) {
         features.push(`WEIGHT_COUNT ${mesh.targetWeights.length}`)
         features.push("USE_MORPHING 1")
       }
@@ -72,6 +74,9 @@ export namespace StandardMaterialFeatureSet {
       features.push("MATERIAL_UNLIT 1")
     }
     features.push("MATERIAL_METALLICROUGHNESS 1")
+    if (lightingEnvironment.fog) {
+      features.push("USE_FOG 1")
+    }
     if (lightingEnvironment.lights.length > 0) {
       features.push(`LIGHT_COUNT ${lightingEnvironment.lights.length}`)
       features.push("USE_PUNCTUAL 1")
@@ -86,6 +91,9 @@ export namespace StandardMaterialFeatureSet {
         Debug.warn(Message.imageBasedLightingShaderTextureLodNotSupported)
       }
       features.push("USE_IBL 1")
+      if (lightingEnvironment.imageBasedLighting.diffuse.cubemapFormat === CubemapFormat.rgbe8) {
+        features.push("USE_RGBE 1")
+      }
     }
     if (material.shadowCastingLight) {
       features.push("USE_SHADOW_MAPPING 1")

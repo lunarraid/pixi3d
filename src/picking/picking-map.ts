@@ -4,6 +4,8 @@ import { Camera } from "../camera/camera"
 import { RenderTexture, Renderer, Program } from "@pixi/core"
 import { Mat4 } from "../math/mat4"
 import { MeshShader } from "../mesh/mesh-shader"
+import { Shader as Vertex } from "./shader/picking.vert"
+import { Shader as Fragment } from "./shader/picking.frag"
 
 export class PickingMap {
   private _pixels: Uint8Array
@@ -13,9 +15,8 @@ export class PickingMap {
 
   constructor(private _renderer: Renderer, size: number) {
     this._pixels = new Uint8Array(size * size * 4)
-    this._output = RenderTexture.create({ width: size, height: size })
-    this._shader = new MeshShader(
-      Program.from(require("./shader/picking.vert"), require("./shader/picking.frag")))
+    this._output = RenderTexture.create({ width: size, height: size, resolution: 1 })
+    this._shader = new MeshShader(Program.from(Vertex.source, Fragment.source))
     this._output.framebuffer.addDepthTexture()
   }
 
@@ -71,7 +72,7 @@ export class PickingMap {
     for (let mesh of meshes) {
       uniforms.u_Id = hitArea.id
       uniforms.u_ModelViewProjection = Mat4.multiply(
-        camera.viewProjection, mesh.transform.worldTransform.array, this._matrix)
+        camera.viewProjection.array, mesh.transform.worldTransform.array, this._matrix)
       this._shader.render(mesh, this._renderer)
     }
   }

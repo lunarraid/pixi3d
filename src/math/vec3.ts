@@ -40,6 +40,9 @@ export class Vec3 {
   static magnitude(a: Float32Array) {
     return vec3.length(a)
   }
+  static squaredMagnitude(a: Float32Array) {
+    return vec3.squaredLength(a)
+  }
   static inverse(a: Float32Array, out = new Float32Array(3)) {
     return <Float32Array>vec3.inverse(out, a)
   }
@@ -54,5 +57,8 @@ export class Vec3 {
   }
   static squaredDistance(a: Float32Array, b: Float32Array) {
     return vec3.squaredDistance(a, b)
+  }
+  static lerp(a: Float32Array, b: Float32Array, t: number, out = new Float32Array(3)) {
+    return <Float32Array>vec3.lerp(out, a, b, t)
   }
 }

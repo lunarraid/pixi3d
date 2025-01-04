@@ -1,6 +1,8 @@
 import { Renderer, IRendererPlugin } from "@pixi/core"
+import { Compatibility } from "../compatibility/compatibility"
 import { ImageBasedLighting } from "./image-based-lighting"
 import { Light } from "./light"
+import { Fog } from "./fog"
 
 /**
  * A lighting environment represents the different lighting conditions for a 
@@ -13,12 +15,15 @@ export class LightingEnvironment implements IRendererPlugin {
   /** The lights affecting this lighting environment. */
   lights: Light[] = []
 
+  fog?: Fog
+
   /** The main lighting environment which is used by default. */
   static main: LightingEnvironment
 
   /**
    * Creates a new lighting environment using the specified renderer.
    * @param renderer The renderer to use.
+   * @param imageBasedLighting The image based lighting to use.
    */
   constructor(public renderer: Renderer, imageBasedLighting?: ImageBasedLighting) {
     this.renderer.on("prerender", () => {
@@ -45,4 +50,4 @@ export class LightingEnvironment implements IRendererPlugin {
   }
 }
 
-Renderer.registerPlugin("lighting", LightingEnvironment)
+Compatibility.installRendererPlugin("lighting", LightingEnvironment)

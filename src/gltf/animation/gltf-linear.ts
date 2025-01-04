@@ -1,11 +1,12 @@
-import { glTFInterpolation } from "./gltf-interpolation"
+import { glTFInterpolation, getDenormalizeFunction } from "./gltf-interpolation"
 
-export class glTFLinear extends glTFInterpolation {
+export class glTFLinear implements glTFInterpolation {
   private _data: Float32Array
+  private _denormalize: (data: Float32Array) => Float32Array
 
   constructor(private _output: ArrayLike<number>, private _stride: number) {
-    super()
     this._data = new Float32Array(_stride)
+    this._denormalize = getDenormalizeFunction(this._output, this._stride)
   }
 
   interpolate(frame: number, position: number) {
@@ -18,6 +19,6 @@ export class glTFLinear extends glTFInterpolation {
         this._data[i] = this._output[pos1 + i]
       }
     }
-    return this._data
+    return this._denormalize(this._data)
   }
 }

@@ -3,6 +3,7 @@ import { IRendererPlugin, Renderer } from "@pixi/core"
 import { Point } from "@pixi/math"
 import { PickingMap } from "./picking-map"
 import { PickingHitArea } from "./picking-hitarea"
+import { Compatibility } from "../compatibility/compatibility"
 
 /**
  * Manages the picking hit areas by keeping track on which hit areas needs to 
@@ -37,7 +38,10 @@ export class PickingInteraction implements IRendererPlugin {
     // the "hitTest" function needs to be called. Otherwise, in some 
     // circumstances; the picking is affected by in which order the interaction 
     // object was added to the heirarchy.
-    this.renderer.plugins.interaction.hitTest(new Point(0, 0))
+    let interaction = Compatibility.getInteractionPlugin(this.renderer)
+    if (interaction) {
+      interaction.hitTest(new Point(0, 0))
+    }
     if (this._hitAreas.length > 0) {
       this._map.resizeToAspect()
       this._map.update(this._hitAreas); this._hitAreas = []
@@ -66,4 +70,4 @@ export class PickingInteraction implements IRendererPlugin {
   }
 }
 
-Renderer.registerPlugin("picking", PickingInteraction)
+Compatibility.installRendererPlugin("picking", PickingInteraction)

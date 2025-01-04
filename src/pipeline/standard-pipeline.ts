@@ -2,19 +2,25 @@ import { ObjectRenderer, Renderer } from "@pixi/core"
 import { MaterialRenderPass } from "./material-render-pass"
 import { Mesh3D } from "../mesh/mesh"
 import { ShadowRenderPass } from "../shadow/shadow-render-pass"
-import { PostProcessingSprite, PostProcessingSpriteOptions } from "../sprite/post-processing-sprite"
+import { CompositeSprite } from "../sprite/composite-sprite"
+import { CompositeSpriteOptions } from "../sprite/composite-sprite-options"
 import { Model } from "../model"
 import { ShadowCastingLight } from "../shadow/shadow-casting-light"
 import { RenderPass } from "./render-pass"
 import { StandardMaterial } from "../material/standard/standard-material"
 import { MaterialRenderSortType } from "../material/material-render-sort-type"
+import { Compatibility } from "../compatibility/compatibility"
+import { SpriteBatchRenderer } from "../sprite/sprite-batch-renderer"
+import { ProjectionSprite } from "../sprite/projection-sprite"
 
 /**
  * The standard pipeline renders meshes using the set render passes. It's
  * created and used by default.
  */
 export class StandardPipeline extends ObjectRenderer {
-  private _meshes: Mesh3D[] = []
+  protected _spriteRenderer: SpriteBatchRenderer
+  protected _meshes: Mesh3D[] = []
+  protected _sprites: ProjectionSprite[] = []
 
   /** The pass used for rendering materials. */
   materialPass = new MaterialRenderPass(this.renderer, "material")
@@ -39,26 +45,20 @@ export class StandardPipeline extends ObjectRenderer {
         if (pass.clear) { pass.clear() }
       }
     })
+
+    this._spriteRenderer = new SpriteBatchRenderer(renderer)
   }
 
   /**
-   * Creates a new post processing sprite and sets the material pass to render
-   * to it's texture.
-   * @param options The options when creating the sprite.
+   * Adds an object to be rendered.
+   * @param object The object to render.
    */
-  createPostProcessingSprite(options?: PostProcessingSpriteOptions) {
-    const sprite =
-      new PostProcessingSprite(this.renderer, options)
-    this.materialPass.renderTexture = sprite.renderTexture
-    return sprite
-  }
-
-  /**
-   * Adds a mesh to be rendered.
-   * @param mesh The mesh to render.
-   */
-  render(mesh: Mesh3D) {
-    this._meshes.push(mesh)
+  render(object: Mesh3D | ProjectionSprite) {
+    if (object.isSprite) {
+      this._sprites.push(<ProjectionSprite>object)
+    } else {
+      this._meshes.push(<Mesh3D>object)
+    }
   }
 
   /**
@@ -70,6 +70,16 @@ export class StandardPipeline extends ObjectRenderer {
       pass.render(this._meshes.filter(mesh => mesh.isRenderPassEnabled(pass.name)))
     }
     this._meshes = []
+
+    if (this._sprites.length > 0) {
+      this._spriteRenderer.start()
+      for (let sprite of this._sprites) {
+        // @ts-ignore
+        this._spriteRenderer.render(sprite)
+      }
+      this._spriteRenderer.stop()
+      this._sprites = []
+    }
   }
 
   /**
@@ -83,7 +93,17 @@ export class StandardPipeline extends ObjectRenderer {
       if (a.material.renderSortType !== b.material.renderSortType) {
         return a.material.renderSortType === MaterialRenderSortType.transparent ? 1 : -1
       }
-      return a.renderSortOrder - b.renderSortOrder
+      if (a.renderSortOrder === b.renderSortOrder) {
+        return 0
+      }
+      return a.renderSortOrder < b.renderSortOrder ? -1 : 1
+    })
+
+    this._sprites.sort((a, b) => {
+      if (a.zIndex !== b.zIndex) {
+        return a.zIndex - b.zIndex;
+      }
+      return b.distanceFromCamera - a.distanceFromCamera;
     })
   }
 
@@ -123,4 +143,4 @@ export class StandardPipeline extends ObjectRenderer {
   }
 }
 
-Renderer.registerPlugin("pipeline", StandardPipeline)
+Compatibility.installRendererPlugin("pipeline", StandardPipeline)

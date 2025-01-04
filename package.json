@@ -1,21 +1,60 @@
 {
   "name": "pixi3d",
-  "version": "1.4.1",
+  "version": "2.5.0",
   "description": "The 3D renderer for PixiJS. Seamless integration with 2D applications.",
-  "main": "dist/pixi3d.js",
+  "main": "dist/cjs/pixi5/pixi3d.js",
+  "module": "dist/esm/pixi5/pixi3d.js",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./types/index.d.ts",
+        "default": "./dist/esm/pixi5/pixi3d.js"
+      },
+      "require": {
+        "types": "./types/index.d.ts",
+        "default": "./dist/cjs/pixi5/pixi3d.js"
+      }
+    },
+    "./pixi7": {
+      "import": {
+        "types": "./types/index.d.ts",
+        "default": "./dist/esm/pixi7/pixi3d.js"
+      },
+      "require": {
+        "types": "./types/index.d.ts",
+        "default": "./dist/cjs/pixi7/pixi3d.js"
+      }
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./types/index.d.ts"
+      ],
+      "pixi7": [
+        "./types/index.d.ts"
+      ]
+    }
+  },
   "files": [
     "dist/**/*",
     "types/**/*"
   ],
   "types": "types/index.d.ts",
   "scripts": {
-    "build": "webpack",
-    "prepare": "rimraf dist types && npm run build",
-    "serve": "webpack-dev-server --open --config serve/serve.config.js",
+    "build": "rimraf dist && rollup --config rollup.build.js",
+    "prepublishOnly": "npm run build && npm run types",
+    "start": "rollup --watch --config rollup.serve.js",
     "docs": "typedoc",
     "preversion": "npm run build",
     "version": "npm run docs && git add . && git reset -- docs/CNAME",
-    "test": "webpack-dev-server --open --config test/webpack.config.js"
+    "test": "PIXI_VERSION=7.2.4 mocha test/puppeteer-test-context.mjs --timeout 10000 --slow 5000",
+    "test:pixi5": "PIXI_VERSION=5.3.0 mocha test/puppeteer-test-context.mjs --timeout 10000 --slow 5000",
+    "test:pixi6": "PIXI_VERSION=6.5.8 mocha test/puppeteer-test-context.mjs --timeout 10000 --slow 5000",
+    "test:pixi7": "PIXI_VERSION=7.2.4 mocha test/puppeteer-test-context.mjs --timeout 10000 --slow 5000",
+    "test:browser": "rollup --watch --config rollup.test.js",
+    "types": "rimraf types && tsc --emitDeclarationOnly",
+    "check-types": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
@@ -27,35 +66,28 @@
     "url": "https://github.com/jnsmalm/pixi3d/issues"
   },
   "homepage": "https://github.com/jnsmalm/pixi3d#readme",
-  "peerDependencies": {
-    "@pixi/core": "^6.0.2",
-    "@pixi/constants": "^6.0.2",
-    "@pixi/display": "^6.0.2",
-    "@pixi/interaction": "^6.0.2",
-    "@pixi/loaders": "^6.0.2",
-    "@pixi/math": "^6.0.2",
-    "@pixi/mixin-get-child-by-name": "^6.0.2",
-    "@pixi/settings": "^6.0.2",
-    "@pixi/sprite": "^6.0.2",
-    "@pixi/ticker": "^6.0.2",
-    "@pixi/utils": "^6.0.2"
-  },
   "devDependencies": {
-    "chai": "^4.3.4",
+    "@pixi/assets": "^6.5.1",
+    "@rollup/plugin-commonjs": "^22.0.1",
+    "@rollup/plugin-image": "^2.1.1",
+    "@rollup/plugin-node-resolve": "^13.3.0",
+    "chai": "^4.3.6",
+    "cors": "^2.8.5",
+    "esbuild": "^0.15.10",
+    "express": "^4.18.1",
     "gl-matrix": "^3.3.0",
-    "mocha": "^8.4.0",
-    "mocha-loader": "^5.1.5",
+    "mocha": "^10.0.0",
     "pixelmatch": "^5.2.1",
-    "pixi.js": "^6.0.2",
+    "pixi.js": "^6.5.1",
+    "pngjs": "^6.0.0",
+    "puppeteer": "^18.0.5",
     "rimraf": "^3.0.2",
-    "ts-loader": "^6.2.0",
+    "rollup": "^2.75.7",
+    "rollup-plugin-esbuild": "^4.10.1",
+    "rollup-plugin-jscc": "^2.0.0",
+    "rollup-plugin-serve": "^2.0.0",
     "tslib": "^2.3.0",
     "typedoc": "^0.22.9",
-    "typescript": "^4.2.4",
-    "url-loader": "^3.0.0",
-    "webpack": "^4.41.0",
-    "webpack-cli": "^3.3.9",
-    "webpack-dev-server": "^3.10.3",
-    "webpack-glsl-loader": "^1.0.1"
+    "typescript": "^4.4.4"
   }
 }

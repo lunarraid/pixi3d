@@ -10,12 +10,13 @@ import { Mesh3D } from "../mesh/mesh"
 import { Container3D } from "../container"
 import { Material } from "../material/material"
 import { MaterialFactory } from "../material/material-factory"
-import { StandardMaterial } from "../material/standard/standard-material"
 import { MeshGeometry3D } from "../mesh/geometry/mesh-geometry"
 import { Model } from "../model"
-import { Matrix4 } from "../transform/matrix4"
+import { Matrix4x4 } from "../transform/matrix"
 import { Skin } from "../skinning/skin"
 import { Joint } from "../skinning/joint"
+import { StandardMaterialFactory } from "../material/standard/standard-material-factory"
+import { glTFChannelFactory } from "./animation/gltf-channel-factory"
 
 /**
  * Parses glTF assets and creates models and meshes.
@@ -24,7 +25,6 @@ export class glTFParser {
   private _asset: glTFAsset
   private _materialFactory: MaterialFactory
   private _descriptor: any
-  private _textures: Texture[] = []
 
   /**
    * Creates a new parser using the specified asset.
@@ -33,10 +33,12 @@ export class glTFParser {
    */
   constructor(asset: glTFAsset, materialFactory?: MaterialFactory) {
     this._asset = asset
-    this._materialFactory = materialFactory || StandardMaterial
+    this._materialFactory = materialFactory || new StandardMaterialFactory()
     this._descriptor = this._asset.descriptor
-    for (let i = 0; i < this._descriptor.textures?.length; i++) {
-      this._textures.push(this.parseTexture(i))
+    if (asset.textures.length === 0) {
+      for (let i = 0; i < this._descriptor.textures?.length; i++) {
+        asset.textures.push(this.parseTexture(i))
+      }
     }
   }
 
@@ -78,9 +80,10 @@ export class glTFParser {
       size = bufferView.byteStride / componentSize[accessor.componentType] * (accessor.count - 1) + componentCount[accessor.type]
     }
     let buffer = this._asset.buffers[bufferView.buffer]
+    const normalized = accessor.normalized === true;
 
     return glTFAttribute.from(
-      accessor.componentType, buffer, offset, size, bufferView.byteStride, accessor.min, accessor.max)
+      accessor.componentType, componentCount[accessor.type], buffer, offset, size, bufferView.byteStride, normalized, accessor.min, accessor.max)
   }
 
   /**
@@ -103,7 +106,7 @@ export class glTFParser {
       if (output === undefined) {
         continue
       }
-      let animationChannel = glTFChannel.from(
+      let animationChannel = glTFChannelFactory.create(
         input.buffer, output.buffer, sampler.interpolation || "LINEAR", channel.target.path, nodes[channel.target.node])
       if (animationChannel) {
         channels.push(animationChannel)
@@ -128,7 +131,7 @@ export class glTFParser {
       return this._materialFactory.create(result)
     }
     if (material.occlusionTexture !== undefined) {
-      result.occlusionTexture = this._textures[material.occlusionTexture.index].clone()
+      result.occlusionTexture = this._asset.textures[material.occlusionTexture.index].clone()
       result.occlusionTexture.strength = material.occlusionTexture.strength
       result.occlusionTexture.texCoord = material.occlusionTexture.texCoord
       if (material.occlusionTexture.extensions && material.occlusionTexture.extensions.KHR_texture_transform) {
@@ -139,7 +142,7 @@ export class glTFParser {
       }
     }
     if (material.normalTexture !== undefined) {
-      result.normalTexture = this._textures[material.normalTexture.index].clone()
+      result.normalTexture = this._asset.textures[material.normalTexture.index].clone()
       result.normalTexture.scale = material.normalTexture.scale || 1
       result.normalTexture.texCoord = material.normalTexture.texCoord
       if (material.normalTexture.extensions && material.normalTexture.extensions.KHR_texture_transform) {
@@ -150,7 +153,7 @@ export class glTFParser {
       }
     }
     if (material.emissiveTexture !== undefined) {
-      result.emissiveTexture = this._textures[material.emissiveTexture.index].clone()
+      result.emissiveTexture = this._asset.textures[material.emissiveTexture.index].clone()
       result.emissiveTexture.texCoord = material.emissiveTexture.texCoord
       if (material.emissiveTexture.extensions && material.emissiveTexture.extensions.KHR_texture_transform) {
         result.emissiveTexture.transform = material.emissiveTexture.extensions.KHR_texture_transform
@@ -173,7 +176,7 @@ export class glTFParser {
     }
     let pbr = material.pbrMetallicRoughness
     if (pbr?.metallicRoughnessTexture !== undefined) {
-      result.metallicRoughnessTexture = this._textures[pbr.metallicRoughnessTexture.index].clone()
+      result.metallicRoughnessTexture = this._asset.textures[pbr.metallicRoughnessTexture.index].clone()
       result.metallicRoughnessTexture.texCoord = pbr.metallicRoughnessTexture.texCoord
       if (pbr.metallicRoughnessTexture.extensions && pbr.metallicRoughnessTexture.extensions.KHR_texture_transform) {
         result.metallicRoughnessTexture.transform = pbr.metallicRoughnessTexture.extensions.KHR_texture_transform
@@ -186,7 +189,7 @@ export class glTFParser {
       result.baseColor = pbr.baseColorFactor
     }
     if (pbr?.baseColorTexture !== undefined) {
-      result.baseColorTexture = this._textures[pbr.baseColorTexture.index].clone()
+      result.baseColorTexture = this._asset.textures[pbr.baseColorTexture.index].clone()
       result.baseColorTexture.texCoord = pbr.baseColorTexture.texCoord
       if (pbr.baseColorTexture.extensions && pbr.baseColorTexture.extensions.KHR_texture_transform) {
         result.baseColorTexture.transform = pbr.baseColorTexture.extensions.KHR_texture_transform
@@ -212,28 +215,54 @@ export class glTFParser {
    * @param source The source object or index.
    */
   parseTexture(index: number) {
-    const texture = this._descriptor.textures[index]
-    const image = this._asset.images[texture.source]
-    const result = new Texture(new BaseTexture(image.baseTexture.resource, {
-      wrapMode: WRAP_MODES.REPEAT,
-      // Went back and forth about NO_PREMULTIPLIED_ALPHA. The default in
-      // PixiJS is to have premultiplied alpha textures, but this may not work
-      // so well when rendering objects as opaque (which have alpha equal to 0).
-      // In that case it's impossible to retrieve the original RGB values, 
-      // because they are all zero when using premultiplied alpha. Both the glTF
-      // Sample Viewer and Babylon.js uses NO_PREMULTIPLIED_ALPHA so decided to
-      // do the same.
-      alphaMode: ALPHA_MODES.NO_PREMULTIPLIED_ALPHA
-    }))
+    const texture = this._descriptor.textures[index];
+    const image = this._asset.images[this.findTextureSource(texture)];
+    const result = new Texture(
+      new BaseTexture(image.baseTexture.resource, {
+        wrapMode: WRAP_MODES.REPEAT,
+        // Went back and forth about NO_PREMULTIPLIED_ALPHA. The default in
+        // PixiJS is to have premultiplied alpha textures, but this may not work
+        // so well when rendering objects as opaque (which have alpha equal to 0).
+        // In that case it's impossible to retrieve the original RGB values,
+        // because they are all zero when using premultiplied alpha. Both the glTF
+        // Sample Viewer and Babylon.js uses NO_PREMULTIPLIED_ALPHA so decided to
+        // do the same.
+        alphaMode: ALPHA_MODES.NO_PREMULTIPLIED_ALPHA,
+      })
+    );
     if (this._descriptor.samplers && texture.sampler !== undefined) {
-      const sampler = this._descriptor.samplers[texture.sampler]
+      const sampler = this._descriptor.samplers[texture.sampler];
       switch (sampler.wrapS) {
-        case 10497: result.baseTexture.wrapMode = WRAP_MODES.REPEAT; break
-        case 33648: result.baseTexture.wrapMode = WRAP_MODES.MIRRORED_REPEAT; break
-        case 33071: result.baseTexture.wrapMode = WRAP_MODES.CLAMP; break
+        case 10497:
+          result.baseTexture.wrapMode = WRAP_MODES.REPEAT;
+          break;
+        case 33648:
+          result.baseTexture.wrapMode = WRAP_MODES.MIRRORED_REPEAT;
+          break;
+        case 33071:
+          result.baseTexture.wrapMode = WRAP_MODES.CLAMP;
+          break;
       }
     }
-    return result
+    return result;
+  }
+
+  findTextureSource(obj) {
+    // Base case: Check if the current object directly contains the `source` key
+    if (obj && typeof obj === "object" && "source" in obj) {
+      return obj.source;
+    }
+
+    // Recursively check each key in the object
+    for (const key in obj) {
+      if (obj[key] && typeof obj[key] === "object") {
+        const result = this.findTextureSource(obj[key]);
+        if (result !== undefined) {
+          return result;
+        }
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -348,7 +377,7 @@ export class glTFParser {
       container.scale.set(node.scale[0], node.scale[1], node.scale[2])
     }
     if (node.matrix) {
-      container.transform.setFromMatrix(new Matrix4(node.matrix))
+      container.transform.setFromMatrix(new Matrix4x4(node.matrix))
     }
     return <Container3D>container
   }

@@ -18,7 +18,7 @@ import { StandardMaterialNormalTexture } from "./standard-material-normal-textur
 import { StandardMaterialTexture } from "./standard-material-texture"
 import { StandardMaterialFactory } from "./standard-material-factory"
 import { ImageBasedLighting } from "../../lighting/image-based-lighting"
-import { TextureTransform } from "../.."
+import { TextureTransform } from "../../texture/texture-transform"
 
 const shaders: { [features: string]: StandardShader } = {}
 
@@ -35,10 +35,10 @@ export class StandardMaterial extends Material {
   private _lightingEnvironment?: LightingEnvironment
   private _lightingEnvironmentConfigId = 0
   private _unlit = false
-  private _alphaMode = StandardMaterialAlphaMode.opaque
+  private _alphaMode = StandardMaterialAlphaMode.blend
   private _debugMode?: StandardMaterialDebugMode
   private _baseColorTexture?: StandardMaterialTexture
-  private _baseColor = new Float32Array(4)
+  private _baseColorFactor = new Float32Array(4)
   private _normalTexture?: StandardMaterialNormalTexture
   private _occlusionTexture?: StandardMaterialOcclusionTexture
   private _emissiveTexture?: StandardMaterialTexture
@@ -242,7 +242,12 @@ export class StandardMaterial extends Material {
     if (!this._instancingEnabled && mesh.instances.length > 0) {
       // Invalidate shader when instancing was enabled.
       this.invalidateShader()
-      this._instancingEnabled = mesh.instances.length > 0
+      this._instancingEnabled = true
+    }
+    if (this._instancingEnabled && mesh.instances.length === 0) {
+      // Invalidate shader when instancing was disabled.
+      this.invalidateShader()
+      this._instancingEnabled = false
     }
     let lighting = this.lightingEnvironment || LightingEnvironment.main
     let configId = getLightingEnvironmentConfigId(lighting)
@@ -289,24 +294,27 @@ export class StandardMaterial extends Material {
   }
 
   updateUniforms(mesh: Mesh3D, shader: Shader) {
-    this._baseColor.set(this.baseColor.rgb)
-    this._baseColor[3] = this.baseColor.a * mesh.worldAlpha
+    for (let i = 0; i < 3; i++) {
+      this._baseColorFactor[i] = this.baseColor.rgba[i]
+    }
+    this._baseColorFactor[3] = this.baseColor.a * mesh.worldAlpha
     let camera = this.camera || Camera.main
     if (mesh.skin) {
       this._skinUniforms.update(mesh, shader)
     }
-    shader.uniforms.u_Camera = camera.worldTransform.position
-    shader.uniforms.u_ViewProjectionMatrix = camera.viewProjection
+    shader.uniforms.u_Camera = camera.worldTransform.position.array
+    shader.uniforms.u_ViewProjectionMatrix = camera.viewProjection.array
+    shader.uniforms.u_ViewMatrix = camera.view.array
     shader.uniforms.u_Exposure = this.exposure
     shader.uniforms.u_MetallicFactor = this.metallic
     shader.uniforms.u_RoughnessFactor = this.roughness
-    shader.uniforms.u_BaseColorFactor = this._baseColor
+    shader.uniforms.u_BaseColorFactor = this._baseColorFactor
     shader.uniforms.u_ModelMatrix = mesh.worldTransform.array
     shader.uniforms.u_NormalMatrix = mesh.transform.normalTransform.array
     if (this._alphaMode === StandardMaterialAlphaMode.mask) {
       shader.uniforms.u_AlphaCutoff = this.alphaCutoff
     }
-    if (mesh.targetWeights) {
+    if (mesh.targetWeights && mesh.targetWeights.length > 0) {
       shader.uniforms.u_morphWeights = mesh.targetWeights
     }
     if (this.baseColorTexture?.valid) {
@@ -326,13 +334,19 @@ export class StandardMaterial extends Material {
         case LightType.spot: type = 2; break
       }
       shader.uniforms[`u_Lights[${i}].type`] = type
-      shader.uniforms[`u_Lights[${i}].position`] = light.worldTransform.position
-      shader.uniforms[`u_Lights[${i}].direction`] = light.worldTransform.forward
+      shader.uniforms[`u_Lights[${i}].position`] = light.worldTransform.position.array
+      shader.uniforms[`u_Lights[${i}].direction`] = light.worldTransform.forward.array
       shader.uniforms[`u_Lights[${i}].range`] = light.range
       shader.uniforms[`u_Lights[${i}].color`] = light.color.rgb
       shader.uniforms[`u_Lights[${i}].intensity`] = light.intensity
       shader.uniforms[`u_Lights[${i}].innerConeCos`] = Math.cos(light.innerConeAngle * DEG_TO_RAD)
       shader.uniforms[`u_Lights[${i}].outerConeCos`] = Math.cos(light.outerConeAngle * DEG_TO_RAD)
+    }
+
+    if (lightingEnvironment.fog) {
+      shader.uniforms.u_FogNear = lightingEnvironment.fog.near
+      shader.uniforms.u_FogFar = lightingEnvironment.fog.far
+      shader.uniforms.u_FogColor = lightingEnvironment.fog.color.rgb
     }
     if (this._shadowCastingLight) {
       shader.uniforms.u_ShadowSampler = this._shadowCastingLight.shadowTexture

@@ -1,4 +1,30 @@
-async function getObjectURLFromRender(render, resources, { width = 1280, height = 720, webGL = 1 } = {}) {
+async function loadResources(urls) {
+  let resources = {}
+  if (PIXI.Assets) {
+    for (let url of urls || []) {
+      let asset = await PIXI.Assets.load(url.url)
+      resources[url.name] = {
+        gltf: asset, texture: asset, cubemap: asset
+      }
+    }
+    // Need some delay for embedded/binary glTF files, not sure why - needs
+    // some investigation.
+    await new Promise(resolve => setTimeout(resolve, 100))
+  } else {
+    let loader = new PIXI.Loader()
+    if (urls) {
+      urls.forEach(res => { loader.add(res) })
+    }
+    return new Promise((resolve, reject) => {
+      loader.load((_, resources) => {
+        resolve(resources)
+      })
+    })
+  }
+  return resources
+}
+
+async function getObjectURLFromRender(render, urls, { width = 1280, height = 720, webGL = 1 } = {}) {
   // switch (webGL) {
   //   case 1: {
   //     PIXI.settings.PREFER_ENV = PIXI.ENV.WEBGL1
@@ -12,29 +38,23 @@ async function getObjectURLFromRender(render, resources, { width = 1280, height 
   let renderer = new PIXI.Renderer({
     width, height, backgroundColor: 0xcccccc
   })
-  let loader = new PIXI.Loader()
-  if (resources) {
-    resources.forEach(res => { loader.add(res) })
-  }
-  let result = new Promise((resolve, reject) => {
-    loader.load((_, resources) => {
-      render(renderer, resources)
-      let canvas = document.createElement("canvas")
-      canvas.width = width
-      canvas.height = height
-      let ctx = canvas.getContext("2d")
-      ctx.drawImage(renderer.view, 0, 0)
-      canvas.toBlob(blob => {
-        resolve(URL.createObjectURL(blob))
-        renderer.destroy()
-        PIXI.utils.clearTextureCache()
-      })
+  let resources = await loadResources(urls)
+  return new Promise(async (resolve, reject) => {
+    await render(renderer, resources)
+    let canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+    let ctx = canvas.getContext("2d")
+    ctx.drawImage(renderer.view, 0, 0)
+    canvas.toBlob(blob => {
+      resolve(URL.createObjectURL(blob))
+      renderer.destroy()
+      PIXI.utils.clearTextureCache()
     })
   })
-  return result
 }
 
-export async function getImageDataFromUrl(url) {
+async function getImageDataFromUrl(url) {
   return new Promise((resolve, reject) => {
     let image = new Image()
     image.src = url
@@ -55,7 +75,7 @@ export async function getImageDataFromUrl(url) {
   })
 }
 
-export async function getImageDataFromRender(render, resources, options = {}) {
+async function getImageDataFromRender(render, resources, options = {}) {
   return await getImageDataFromUrl(
     await getObjectURLFromRender(render, resources, { ...options }), false)
 }

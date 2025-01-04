@@ -1,4 +1,6 @@
-import { ILoaderResource, LoaderResource, Loader } from "@pixi/loaders"
+import type { ILoaderResource, Loader } from "@pixi/loaders"
+import { Compatibility } from "../compatibility/compatibility"
+import { LoaderResourceResponseType } from "../compatibility/compatibility-version"
 import { glTFAsset } from "../gltf/gltf-asset"
 import { glTFResourceLoader } from "../gltf/gltf-resource-loader"
 
@@ -8,20 +10,25 @@ export const glTFLoader = {
       return next()
     }
     let loader = <Loader><unknown>this
-    Object.assign(resource, {
-      gltf: glTFAsset.load(resource.data, new glTFExternalResourceLoader(loader, resource))
+    glTFAsset.load(resource.data, new glTFExternalResourceLoader(loader, resource), gltf => {
+      Object.assign(resource, { gltf }); next()
     })
-    next()
   },
   add: function () {
-    LoaderResource.setExtensionXhrType(
-      "bin", LoaderResource.XHR_RESPONSE_TYPE.BUFFER)
-    LoaderResource.setExtensionXhrType(
-      "gltf", LoaderResource.XHR_RESPONSE_TYPE.JSON)
-  }
+    Compatibility.setLoaderResourceExtensionType("bin",
+      LoaderResourceResponseType.buffer)
+    Compatibility.setLoaderResourceExtensionType("gltf",
+      LoaderResourceResponseType.json)
+  },
+  test(url: string): boolean {
+    return url.includes(".gltf") || url.includes(".glb")
+  },
+  async load(url: string): Promise<glTFAsset> {
+    return await glTFAsset.fromURL(url)
+  },
 }
 
-Loader.registerPlugin(glTFLoader)
+Compatibility.installLoaderPlugin("gltf", glTFLoader)
 
 class glTFExternalResourceLoader implements glTFResourceLoader {
   constructor(private _loader: Loader, private _resource: ILoaderResource) {

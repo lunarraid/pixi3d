@@ -1,5 +1,7 @@
-import { ILoaderResource, LoaderResource, Loader } from "@pixi/loaders"
+import type { ILoaderResource } from "@pixi/loaders"
 import { glTFAsset } from "../gltf/gltf-asset"
+import { Compatibility } from "../compatibility/compatibility"
+import { LoaderResourceResponseType } from "../compatibility/compatibility-version"
 
 export const glTFBinaryLoader = {
   use: function (resource: ILoaderResource, next: () => void) {
@@ -7,18 +9,17 @@ export const glTFBinaryLoader = {
       return next()
     }
     if (glTFAsset.isValidBuffer(resource.data)) {
-      glTFAsset.fromBuffer(resource.data, (gltf) => {
-        Object.assign(resource, { gltf })
-        next()
+      glTFAsset.fromBuffer(resource.data, gltf => {
+        Object.assign(resource, { gltf }); next()
       })
     } else {
       return next()
     }
   },
   add: function () {
-    LoaderResource.setExtensionXhrType(
-      "glb", LoaderResource.XHR_RESPONSE_TYPE.BUFFER)
+    Compatibility.setLoaderResourceExtensionType("glb",
+      LoaderResourceResponseType.buffer)
   }
 }
 
-Loader.registerPlugin(glTFBinaryLoader)
+Compatibility.installLoaderPlugin("cubemap", glTFBinaryLoader)

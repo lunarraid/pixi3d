@@ -23,5 +23,13 @@ export interface MeshGeometryAttribute {
      * is tightly packed. When two or more attributes use the same buffer, this
      * field must be defined.
      */
-     stride?: number
+    stride?: number
+    /**
+     * The number of elements in this attribute.
+     */
+    componentCount?: number
+    /**
+     * Is buffer data normalized in this attribute.
+     */
+    normalized: boolean
 }

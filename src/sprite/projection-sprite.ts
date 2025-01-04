@@ -1,15 +1,17 @@
 import { Sprite } from "@pixi/sprite"
 import { Texture, Resource } from "@pixi/core"
 import { settings } from "@pixi/settings"
+import { Matrix4x4 } from "../transform/matrix"
 
 export class ProjectionSprite extends Sprite {
   private _pixelsPerUnit = 100
 
-  modelViewProjection = new Float32Array(16)
-  
+  distanceFromCamera = 0
+  modelViewProjection = new Matrix4x4()
+
   constructor(texture?: Texture<Resource>) {
     super(texture)
-    this.pluginName = "sprite3d"
+    this.pluginName = "pipeline"
   }
 
   get pixelsPerUnit() {

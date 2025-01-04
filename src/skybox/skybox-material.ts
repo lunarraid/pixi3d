@@ -4,6 +4,9 @@ import { MeshShader } from "../mesh/mesh-shader"
 import { Camera } from "../camera/camera"
 import { Mesh3D } from "../mesh/mesh"
 import { Material } from "../material/material"
+import { Shader as Vertex } from "./shader/skybox.vert"
+import { Shader as Fragment } from "./shader/skybox.frag"
+import { CubemapFormat } from "../cubemap/cubemap-format"
 
 export class SkyboxMaterial extends Material {
   private _cubemap: Cubemap
@@ -26,11 +29,13 @@ export class SkyboxMaterial extends Material {
 
   camera?: Camera
 
+  exposure = 1
+
   constructor(cubemap: Cubemap) {
     super()
     this._cubemap = cubemap
     this.state = Object.assign(new State(), {
-      culling: true, clockwiseFrontFace: true, depthTest: true
+      culling: true, clockwiseFrontFace: true, depthTest: true, depthMask: false
     })
   }
 
@@ -38,9 +43,11 @@ export class SkyboxMaterial extends Material {
     let camera = this.camera || Camera.main
 
     shader.uniforms.u_ModelMatrix = mesh.worldTransform.array
-    shader.uniforms.u_View = camera.view
-    shader.uniforms.u_Projection = camera.projection
+    shader.uniforms.u_View = camera.view.array
+    shader.uniforms.u_Projection = camera.projection.array
     shader.uniforms.u_EnvironmentSampler = this.cubemap
+    shader.uniforms.u_RGBE = this.cubemap.cubemapFormat === CubemapFormat.rgbe8
+    shader.uniforms.u_Exposure = this.exposure
   }
 
   render(mesh: Mesh3D, renderer: Renderer) {
@@ -52,11 +59,8 @@ export class SkyboxMaterial extends Material {
   }
 
   createShader() {
-    let vert = require("./shader/skybox.vert")
-    let frag = require("./shader/skybox.frag")
-
     if (this.cubemap.valid) {
-      return new MeshShader(Program.from(vert, frag))
+      return new MeshShader(Program.from(Vertex.source, Fragment.source))
     }
   }
 }

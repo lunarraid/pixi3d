@@ -2,8 +2,10 @@ let app = new PIXI.Application({
   backgroundColor: 0xdddddd, resizeTo: window, antialias: true
 })
 document.body.appendChild(app.view)
+globalThis.__PIXI_APP__ = app
 
 let control = new PIXI3D.CameraOrbitControl(app.view)
+control.enableDamping = true
 
 app.loader.add("assets/chromatic/diffuse.cubemap")
 app.loader.add("assets/chromatic/specular.cubemap")

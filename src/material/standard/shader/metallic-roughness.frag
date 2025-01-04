@@ -42,6 +42,7 @@
 @import ./functions;
 @import ./shadow;
 @import ./tonemapping;
+@import ./rgbe;
 
 // KHR_lights_punctual extension.
 // see https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_lights_punctual
@@ -69,6 +70,12 @@ const int LightType_Spot = 2;
 
 #ifdef USE_PUNCTUAL
 uniform Light u_Lights[LIGHT_COUNT];
+#endif
+
+#ifdef USE_FOG
+uniform float u_FogNear;
+uniform float u_FogFar;
+uniform vec3 u_FogColor;
 #endif
 
 #if defined(MATERIAL_SPECULARGLOSSINESS) || defined(MATERIAL_METALLICROUGHNESS)
@@ -134,10 +141,13 @@ vec3 getIBLContribution(MaterialInfo materialInfo, vec3 n, vec3 v)
     vec4 specularSample = _texture(u_SpecularEnvSampler, reflection);
 #endif
 
-#ifdef USE_HDR
+#if defined(USE_HDR)
     // Already linear.
     vec3 diffuseLight = diffuseSample.rgb;
     vec3 specularLight = specularSample.rgb;
+#elif defined(USE_RGBE)
+    vec3 diffuseLight = decodeRGBE(diffuseSample);
+    vec3 specularLight = decodeRGBE(specularSample);
 #else
     vec3 diffuseLight = SRGBtoLINEAR(diffuseSample).rgb;
     vec3 specularLight = SRGBtoLINEAR(specularSample).rgb;
@@ -336,7 +346,9 @@ void main()
 #endif
 
     // The albedo may be defined from a base texture or a flat color
-#ifdef HAS_BASE_COLOR_MAP
+#if defined(HAS_BASE_COLOR_MAP) && defined(MATERIAL_UNLIT)
+    baseColor = _texture(u_BaseColorSampler, getBaseColorUV()) * baseColorFactor;
+#elif defined(HAS_BASE_COLOR_MAP)
     baseColor = SRGBtoLINEAR(_texture(u_BaseColorSampler, getBaseColorUV())) * baseColorFactor;
 #else
     baseColor = baseColorFactor;
@@ -363,7 +375,7 @@ void main()
 #endif
 
 #ifdef MATERIAL_UNLIT
-    FRAG_COLOR = vec4(LINEARtoSRGB(baseColor.rgb) * baseColor.a, baseColor.a);
+    FRAG_COLOR = vec4(baseColor.rgb * baseColor.a, baseColor.a);
     return;
 #endif
 
@@ -447,8 +459,16 @@ void main()
 
 #ifndef DEBUG_OUTPUT // no debug
 
-   // regular shading
-    FRAG_COLOR = vec4(toneMap(color) * baseColor.a, baseColor.a);
+    vec3 toneMappedColor = toneMap(color);
+
+    #ifdef USE_FOG
+        float fogDepth = -v_ModelViewPosition.z;
+        float fogFactor = smoothstep(u_FogNear, u_FogFar, fogDepth);
+        toneMappedColor = mix(toneMappedColor, u_FogColor, fogFactor);
+    #endif
+
+    // regular shading
+    FRAG_COLOR = vec4(toneMappedColor * baseColor.a, baseColor.a);
 
 #else // debug output
 

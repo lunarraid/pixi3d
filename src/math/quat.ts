@@ -31,4 +31,7 @@ export class Quat {
   static rotateZ(a: Float32Array, rad: number, out = new Float32Array(4)) {
     return <Float32Array>quat.rotateZ(out, a, rad)
   }
+  static rotationTo(from: Float32Array, to: Float32Array, out = new Float32Array(4)) {
+    return <Float32Array>quat.rotationTo(out, from, to);
+  }
 }

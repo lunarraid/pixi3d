@@ -20,6 +20,7 @@ export class Skybox extends Container3D {
   constructor(cubemap: Cubemap) {
     super()
     this._mesh = this.addChild(Mesh3D.createCube(new SkyboxMaterial(cubemap)))
+    this._mesh.renderSortOrder = -1
   }
 
   /**
@@ -32,6 +33,17 @@ export class Skybox extends Container3D {
 
   set camera(value: Camera | undefined) {
     (<SkyboxMaterial>this._mesh.material).camera = value
+  }
+
+  /**
+   * The cubemap exposure used when rendering.
+   */
+  get exposure() {
+    return (<SkyboxMaterial>this._mesh.material).exposure
+  }
+
+  set exposure(value: number) {
+    (<SkyboxMaterial>this._mesh.material).exposure = value
   }
 
   /**

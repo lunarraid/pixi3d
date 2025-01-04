@@ -2,12 +2,14 @@ import { Renderer, Texture, Resource } from "@pixi/core"
 import { IDestroyOptions } from "@pixi/display"
 import { BLEND_MODES } from "@pixi/constants"
 import { ObservablePoint } from "@pixi/math"
-
 import { Camera } from "../camera/camera"
+import { Mat4 } from "../math/mat4"
+import { Vec3 } from "../math/vec3"
 import { SpriteBillboardType } from "./sprite-billboard-type"
 import { Container3D } from "../container"
-import { Mat4 } from "../math/mat4"
 import { ProjectionSprite } from "./projection-sprite"
+
+const vec3 = new Float32Array(3)
 
 /**
  * Represents a sprite in 3D space.
@@ -28,7 +30,7 @@ export class Sprite3D extends Container3D {
    * Creates a new sprite using the specified texture.
    * @param texture The texture to use.
    */
-  constructor(texture: Texture<Resource>) {
+  constructor(texture?: Texture<Resource>) {
     super()
     this._sprite = new ProjectionSprite(texture)
     this._sprite.anchor.set(0.5)
@@ -56,6 +58,15 @@ export class Sprite3D extends Container3D {
 
   set pixelsPerUnit(value: number) {
     this._sprite.pixelsPerUnit = value
+  }
+
+  /** Used for sorting the sprite before render. */
+  get renderSortOrder() {
+    return this._sprite.zIndex
+  }
+
+  set renderSortOrder(value: number) {
+    this._sprite.zIndex = value
   }
 
   /**
@@ -89,21 +100,21 @@ export class Sprite3D extends Container3D {
 
     if (update) {
       const scaling = this.worldTransform.scaling
-      Mat4.multiply(camera.view, this.worldTransform.array, this._modelView)
+      Mat4.multiply(camera.view.array, this.worldTransform.array, this._modelView)
       switch (this._billboardType) {
         case SpriteBillboardType.spherical: {
-          this._modelView[0] = scaling[0]
+          this._modelView[0] = scaling.x
           this._modelView[1] = 0
           this._modelView[2] = 0
           this._modelView[3] = 0
           this._modelView[4] = 0
-          this._modelView[5] = scaling[1]
+          this._modelView[5] = scaling.y
           this._modelView[6] = 0
           this._modelView[7] = 0
           break
         }
         case SpriteBillboardType.cylindrical: {
-          this._modelView[0] = scaling[0]
+          this._modelView[0] = scaling.x
           this._modelView[1] = 0
           this._modelView[2] = 0
           this._modelView[3] = 0
@@ -114,10 +125,15 @@ export class Sprite3D extends Container3D {
           break
         }
       }
-      Mat4.multiply(camera.projection,
-        this._modelView, this._sprite.modelViewProjection)
+      Mat4.multiply(camera.projection.array,
+        this._modelView, this._sprite.modelViewProjection.array)
       this._parentID = this.transform._worldID
       this._cameraTransformId = camera.transformId
+      const dir = Vec3.subtract(camera.worldTransform.position.array, 
+        this.worldTransform.position.array, vec3)
+      const projection = Vec3.scale(camera.worldTransform.forward.array,
+        Vec3.dot(dir, camera.worldTransform.forward.array), vec3)
+      this._sprite.distanceFromCamera = Vec3.squaredMagnitude(projection)
     }
     this._sprite.worldAlpha = this.worldAlpha
     this._sprite.render(renderer)

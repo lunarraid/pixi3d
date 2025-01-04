@@ -1,13 +1,17 @@
-import { Renderer, AbstractBatchRenderer, BatchShaderGenerator, IBatchableElement, ViewableBuffer } from "@pixi/core"
+import { Renderer, BatchShaderGenerator, IBatchableElement, ViewableBuffer } from "@pixi/core"
 import { premultiplyTint } from "@pixi/utils"
 import { SpriteBatchGeometry } from "./sprite-batch-geometry"
+import { Shader as Vertex } from "./shader/sprite.vert"
+import { Shader as Fragment } from "./shader/sprite.frag"
+import { Compatibility } from "../compatibility/compatibility"
+import { BatchRenderer } from "../compatibility/batch-renderer"
+import { Matrix4x4 } from "../transform/matrix"
 
-export class SpriteBatchRenderer extends AbstractBatchRenderer {
+export class SpriteBatchRenderer extends BatchRenderer {
   constructor(renderer: Renderer) {
     super(renderer)
 
-    this.shaderGenerator = new BatchShaderGenerator(
-      require("./shader/sprite.vert"), require("./shader/sprite.frag"))
+    this.shaderGenerator = new BatchShaderGenerator(Vertex.source, Fragment.source)
     this.geometryClass = SpriteBatchGeometry
 
     // The vertex size when rendering 2D sprites is 6. Here, 16 is being added 
@@ -40,9 +44,11 @@ export class SpriteBatchRenderer extends AbstractBatchRenderer {
       float32View[aIndex++] = uvs[i + 1]
       uint32View[aIndex++] = argb
       float32View[aIndex++] = textureId
+
+      // @ts-ignore Element does have a modelViewProjection
+      let modelViewProjection: Float32Array = element.modelViewProjection.array
       for (let j = 0; j < 16; j++) {
-        // @ts-ignore
-        float32View[aIndex++] = element.modelViewProjection[j]
+        float32View[aIndex++] = modelViewProjection[j]
       }
     }
     for (let i = 0; i < indicies.length; i++) {
@@ -51,4 +57,4 @@ export class SpriteBatchRenderer extends AbstractBatchRenderer {
   }
 }
 
-Renderer.registerPlugin("sprite3d", SpriteBatchRenderer)
+Compatibility.installRendererPlugin("sprite3d", SpriteBatchRenderer)

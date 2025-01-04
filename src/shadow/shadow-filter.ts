@@ -2,6 +2,9 @@ import { Renderer, Program, RenderTexture } from "@pixi/core"
 import { MeshShader } from "../mesh/mesh-shader"
 import { Mesh3D } from "../mesh/mesh"
 import { ShadowCastingLight } from "./shadow-casting-light"
+import { Shader as Vertex } from "./shader/gaussian-blur.vert"
+import { Shader as Fragment } from "./shader/gaussian-blur.frag"
+import { StandardShaderSource } from "../material/standard/standard-shader-source"
 
 export class ShadowFilter {
   private _gaussianBlurShader: MeshShader
@@ -10,8 +13,8 @@ export class ShadowFilter {
   constructor(public renderer: Renderer) {
     this._mesh = Mesh3D.createQuad()
     this._gaussianBlurShader = new MeshShader(Program.from(
-      require("./shader/gaussian-blur.vert"),
-      require("./shader/gaussian-blur.frag")
+      StandardShaderSource.build(Vertex.source, [], renderer),
+      StandardShaderSource.build(Fragment.source, [], renderer)
     ))
   }
 

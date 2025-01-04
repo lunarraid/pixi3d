@@ -6,13 +6,29 @@ Pixi3D is a 3D rendering library for the web. It's built on top of PixiJS (which
 * Customized materials and shaders
 * 3D sprites
 * Transformation, morphing and skeletal animations
+* Compatible with PixiJS v5, v6 and v7.
 
 ![SPY-HYPERSPORT](https://github.com/jnsmalm/pixi3d/blob/develop/spy-hypersport.jpg?raw=true)
 
 *"SPY-HYPERSPORT" (https://skfb.ly/o8z7t) by Amvall is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/). Rendered using Pixi3D.*
 
+## Production ready?
+Yes, it's currently being used in multiple projects in production running on hundreds of thousands of different devices (both desktop and mobile).
+
 ## Getting started
-Let's create a simple application which renders a rotating cube. Start by [getting the latest version of Pixi3D](https://github.com/jnsmalm/pixi3d/releases). Also [download PixiJS](https://github.com/pixijs/pixi.js/releases) (Pixi3D is compatible with all versions from 5.3 and later) which is needed to use Pixi3D.
+The easiest way to get started is to use the automatic setup which creates a simple project with everything needed to start immediatly. Node.js must be installed, go to https://nodejs.org to download.
+
+Type in the following using the terminal/console:
+
+```
+npx create-pixi3d-app@latest my-pixi3d-app
+```
+After installation is complete, type `cd my-pixi3d-app` and `npm start` to start local web server.
+
+### Manual setup
+
+- [Download the latest version of Pixi3D](https://github.com/jnsmalm/pixi3d/releases)
+- [Download PixiJS](https://github.com/pixijs/pixi.js/releases) (Pixi3D is compatible with all versions from 5.3 and later)
 
 Next, create a file *app.js* with the following contents.
 
@@ -24,8 +40,9 @@ document.body.appendChild(app.view)
 
 let mesh = app.stage.addChild(PIXI3D.Mesh3D.createCube())
 
-PIXI3D.LightingEnvironment.main.lights.push(
-  Object.assign(new PIXI3D.Light(), { x: -1, z: 3 }))
+let light = new PIXI3D.Light()
+light.position.set(-1, 0, 3)
+PIXI3D.LightingEnvironment.main.lights.push(light)
 
 let rotation = 0
 app.ticker.add(() => {
@@ -45,8 +62,10 @@ Then create *index.html* and include the required scripts.
 </html>
 ```
 
-### Install with npm
-Pixi3D is also available as a npm package. Install the latest release with `npm install pixi3d --save-dev`. This requires that an up-to-date version of Node.js is already installed.
+### Using npm
+Pixi3D is also available as a npm package. Install the latest release with `npm install pixi3d`. This requires that an up-to-date version of Node.js is already installed.
+
+If PixiJS v5 or v6 is used, import from *pixi3d* i.e. `import { Model } from "pixi3d"`. If PixiJS v7 is used, instead import from *pixi3d/pixi7* i.e. `import { Model } from "pixi3d/pixi7"`.
 
 ## Examples
 Examples are available as sandboxes at https://codesandbox.io to quickly get started. Download repo at https://github.com/jnsmalm/pixi3d-sandbox to instead run them locally.
@@ -81,6 +100,8 @@ page with a grey background.*
 ### Loading a 3D model
 A model includes a hierarchy of 3D objects which are called meshes. A mesh contains the geometry and material used for rendering that object. Models are generally being loaded from a file which has been created in a 3D modeling tool like Maya or Blender. Pixi3D supports loading of models using the glTF 2.0 file format. Learn more about glTF at https://www.khronos.org/gltf/
 
+Loading a model is different depending on the PixiJS version used. This is how to do it when using PixiJS v5 or v6.
+
 ```javascript
 app.loader.add(
   "teapot.gltf",
@@ -88,9 +109,26 @@ app.loader.add(
 );
 
 app.loader.load((_, resources) => {
-  let teapot = app.stage.addChild(
-    PIXI3D.Model.from(resources["teapot.gltf"].gltf));
+  setup(resources["teapot.gltf"].gltf);
 })
+
+function setup(gltf) {
+  let teapot = app.stage.addChild(PIXI3D.Model.from(gltf));
+}
+```
+
+This is how to do it when using PixiJS v7.
+
+```javascript
+// Using a self executing function just to make the different methods more comparable.
+(async function load() {
+  let gltf = await PIXI.Assets.load("https://raw.githubusercontent.com/jnsmalm/pixi3d-sandbox/master/assets/teapot/teapot.gltf")
+  setup(gltf)
+})()
+
+function setup(gltf) {
+  let teapot = app.stage.addChild(PIXI3D.Model.from(gltf));
+}
 ```
 *Loads a glTF 2.0 file and creates a model. The silhouette of a teapot should appear. For now, it will be rendered black because there is no lighting.*
 
@@ -112,15 +150,17 @@ Lights are needed to illuminate the objects in the scene, otherwise they may be 
 There are a few different types of lights available. The "point" type is a light that is located at a point and emits light in all directions equally. The "directional" type is a light that is located infinitely far away, and emits light in one direction only. The "spot" type is a light that is located at a point and emits light in a cone shape. Lights have a transform and can be attached to other objects.
 
 ```javascript
-let dirLight = Object.assign(new PIXI3D.Light(), {
-  type: "directional", intensity: 0.5, x: -4, y: 7, z: -4
-});
+let dirLight = new PIXI3D.Light();
+dirLight.type = "directional";
+dirLight.intensity = 0.5;
 dirLight.rotationQuaternion.setEulerAngles(45, 45, 0);
+dirLight.position.set(-4, 7, -4);
 PIXI3D.LightingEnvironment.main.lights.push(dirLight);
 
-let pointLight = Object.assign(new PIXI3D.Light(), {
-  type: "point", intensity: 10, range: 5, x: 1, y: 0, z: 3
-});
+let pointLight = new PIXI3D.Light();
+pointLight.type = "point";
+pointLight.intensity = 10;
+pointLight.position.set(1, 0, 3);
 PIXI3D.LightingEnvironment.main.lights.push(pointLight);
 ```
 *Adds a directional light and a point light to the main lighting environment. The teapot should now be illuminated by the light.*
@@ -176,7 +216,7 @@ Compositing 2D (PixiJS) and 3D (Pixi3D) containers is simple and can be combined
 
 To be able to convert 3D coordinates to 2D coordinates (or the other way around) the camera methods `screenToWorld` and `worldToScreen` can be used. 
 
-Another way of combining 2D and 3D objects is to render a 3D object as a sprite using `PostProcessingSprite`. Thay way, the 3D object can easily be positioned in 2D space. This method also makes it possible to use regular PixiJS filters with 3D objects.
+Another way of combining 2D and 3D objects is to render a 3D object as a sprite using `CompositeSprite`. Thay way, the 3D object can easily be positioned in 2D space. This method also makes it possible to use regular PixiJS filters with 3D objects.
 
 ```javascript
 let vignette = app.stage.addChild(
@@ -204,8 +244,14 @@ let control = new PIXI3D.CameraOrbitControl(app.view)
 ## API
 The API documentation is available at https://api.pixi3d.org
 
+## Changelog
+All notable changes to this project will be documented in the [changelog](CHANGELOG.md)
+
 ## Development
-For developing new features or fixing bugs, use *serve/src/index.js* with `npm run serve`.
+For developing new features or fixing bugs, use *serve/src/index.js* with `npm start`.
+
+## Tests
+Automatic tests can run both using Puppeteer (Headless Chrome) and on a specific device/browser. Run command `npm test` to execute tests using Puppeteer or start local web server with `npm run test:browser` and go to http://localhost:8080/. Before running tests, build using `npm run build`.
 
 ## Building
 Build to *dist* folder with `npm run build`.

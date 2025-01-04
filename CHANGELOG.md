@@ -4,10 +4,122 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.5.0] - 2023-12-17
 ### Added
-- Added functionality to create a sphere mesh.
-- Added support for vertex colors in standard material.
+- Added support mesh quantization.
+
+### Fixed
+- Fixed an issue which caused washed out colors for `Skybox`.
+- Fixed an issue which produced garbage.
+
+## [2.4.0] - 2023-05-13
+### Added
+- Added support for fog when using `StandardMaterial`.
+
+## [2.3.2] - 2023-04-26
+### Fixed
+- Fixed an issue which caused memory leaks when creating several models from the same glTF asset.
+
+## [2.3.1] - 2023-03-29
+### Fixed
+- Fixed an issue which caused rendering to crash when using iOS 16.4.
+
+## [2.3.0] - 2023-03-14
+### Added
+- Added touch support for `CameraOrbitControl`.
+- Added `Mesh3D.createCylinder` function for creating a cylinder mesh.
+- Added `Mesh3D.createCircle` function for creating a circle mesh.
+
+### Fixed
+- Fixed an issue which caused `StandardMaterial` to render slightly wrong colors for unlit materials without a base texture.
+
+## [2.2.0] - 2023-02-05
+### Added
+- Added `renderSortOrder` to `Sprite3D`.
+- Added `lerp` to `Point3D`.
+- Added damping (inertia) support for `CameraOrbitControl`.
+
+## [2.1.1] - 2022-12-23
+### Fixed
+- Fixed an issue which caused some meshes not to render when using vertex colors.
+
+## [2.1.0] - 2022-11-22
+### Added
+- Added support for HDR cubemaps when using `ImageBasedLighting` or `Skybox` (encoded using the RGBE8 format).
+- Added support for changing the exposure of a `Skybox`.
+- `Skybox` is now rendered with gamma correction.
+- Added request options to `glTFAsset.fromURL`.
+
+## [2.0.1] - 2022-11-12
+### Fixed
+- Fixed an issue which caused a crash when rendering shadows with skinned meshes.
+
+## [2.0.0] - 2022-11-12
+### Added
+- Added support for PixiJS v7 and new method of loading assets. If you are using PixiJS v7+ and npm, import from *pixi3d/pixi7* i.e. `import { Model } from "pixi3d/pixi7"`.
+- Added several math functions to `Point3D`.
+- Added several math functions to `Quaternion`.
+- Added `glTFAsset.fromURL`, an async function to load a glTF file. Only works when using PixiJS v7+.
+- Added support to render shadows when using instancing.
+
+### Changed
+- No longer transpiled to ES5, if you need these targets (e.g. IE 11) you'll need to transpile yourself with Babel or other tools capable of porting to ES5.
+- Renamed `PostProcessingSprite` to `CompositeSprite`.
+- Renamed `ObservablePoint3D` to `Point3D` and changed order of constructor arguments.
+- Renamed `ObservableQuaternion` to `Quaternion` and changed order of constructor arguments.
+- Renamed `Matrix4` to `Matrix4x4`.
+- Constructor arguments was changed for `PickingHitArea`.
+- `Camera` properties `view`, `projection` and `viewProjection` was changed from `Float32Array` to `Matrix4x4`.
+- Many `Matrix4x4` properties was changed from `Float32Array` to either `Point3D` or `Quaternion`.
+- `Plane.normal` was changed from `Float32Array` to `Point3D`.
+- `Ray.direction` was changed from `Float32Array` to `Point3D`.
+- `Ray.origin` was changed from `Float32Array` to `Point3D`.
+- `ProjectionSprite.modelViewProjection` was changed from `Float32Array` to `Matrix4x4`.
+
+### Removed
+- `PickingHitArea.fromObject` was removed, use regular constructor instead.
+- `StandardPipeline.createPostProcessingSprite` was removed, use `CompositeSprite` instead.
+
+## [1.6.2] - 2022-08-28
+### Fixed
+- Fixed an issue which caused a crash when all invisible instances was destroyed.
+
+## [1.6.1] - 2022-08-19
+### Fixed
+- Fixed an issue which caused glTF loading function to return before all resources was loaded.
+
+## [1.6.0] - 2022-08-14
+### Added
+- Added support for PixiJS extensions API.
+- Added `Vec3.lerp`.
+
+### Fixed
+- Fixed an issue which could cause instanced meshes to not render correctly after changing visibility for those objects.
+- Fixed an issue which caused glTF embedded images to not load correctly.
+
+### Changed
+- The default value for `alphaMode` on `StandardMaterial` was changed to `blend` to make it easier to render transparent objects without having to change `alphaMode`. To get the previous behavior, set `alphaMode` to `opaque`.
+- `Sprite3D` objects are now rendered after all meshes to fix draw order issues.
+- `Sprite3D` objects are now rendered from back to front by default.
+
+## [1.5.1] - 2022-07-26
+### Fixed
+- Removed peer dependencies from `package.json` which could cause issues with multiple PixiJS versions when using bundlers.
+
+## [1.5.0] - 2022-07-23
+### Added
+- Added `Mesh3D.createSphere` function for creating a sphere mesh.
+- Added support for vertex colors.
+- Added `Material.from` function to be able to create a custom material without the need of extending from `Material`.
+
+### Fixed
+- Fixed an issue which caused picking interaction to not function correctly when resolution was any other value than 1.
+- Fixed an issue which caused `Skybox` to not render correctly when using PixiJS v6+.
+- Fixed sorting of meshes when using values less than 0.
+- Fixed warning when using `PostProcessingSprite` with PixiJS v6+.
+
+### Changed
+- Skybox will now be rendered before other meshes by default.
 
 ## [1.4.1] - 2022-06-14
 ### Fixed

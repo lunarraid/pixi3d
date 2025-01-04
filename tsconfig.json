@@ -3,13 +3,16 @@
     "importHelpers": true,
     "outDir": "out/",
     "strict": true,
-    "module": "commonjs",
-    "target": "es5",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "target": "es2017",
     "downlevelIteration": true,
-    "sourceMap": true,
+    // This source map setting needs to be disabled for rollup.
+    // "sourceMap": true,
     "declaration": true,
     "declarationDir": "types",
     // Required for docs
+    "skipLibCheck": true,
     "esModuleInterop": true,
     "paths": {
       "mini-signals": [
